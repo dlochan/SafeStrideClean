@@ -1,0 +1,10 @@
+Evidence registry: PASS
+Leaderboard rows: 40
+Subjects: 2
+Window_ms: 100=1, 200=1, 300=38
+Tasks included: 23
+Tasks excluded: 13
+RMSE_%BW: median=NA, p95=NA, max=NA
+PI coverage mean: unknown
+Mean band width: 17.94
+Clinical packs: 1

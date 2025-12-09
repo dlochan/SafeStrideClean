@@ -1,0 +1,12 @@
+Evidence registry: PASS
+Eligible trials: 0
+Processed trials: 0
+Success rate: 0.000
+Quality OK rate: unknown
+KPI (rmse_%BW) median=unknown p95=unknown
+PI coverage mean: unknown
+Gate success_rate>=0.90: FAIL
+Gate quality_ok>=0.90: FAIL
+Gate KPI median<=10: FAIL
+Gate KPI p95<=20: FAIL
+Gate coverage>=0.75 (or unknown): PASS

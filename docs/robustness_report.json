@@ -1,0 +1,22 @@
+{
+  "ridge": {
+    "base_mean_rmse": 11.287976149235991,
+    "noise_mean_rmse": 6.668359711919334,
+    "delta_rmse": -4.619616437316657,
+    "n_rows": 153,
+    "n_splits": 5,
+    "noise_frac": 0.05,
+    "dropout_frac": 0.1
+  },
+  "hgb": {
+    "base_mean_rmse": 1.834821764667069,
+    "noise_mean_rmse": 2.4943386583378464,
+    "delta_rmse": 0.6595168936707774,
+    "n_rows": 153,
+    "n_splits": 5,
+    "noise_frac": 0.05,
+    "dropout_frac": 0.1
+  },
+  "_status": "fail",
+  "_threshold": 0.3
+}

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SafeStride Progress Dashboard</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 16px; }
+    header { display:flex; align-items:center; gap:12px; margin-bottom: 12px; }
+    .cards { display:flex; gap:12px; flex-wrap:wrap; margin: 12px 0; }
+    .card { padding:10px 14px; border:1px solid #ddd; border-radius:8px; background:#fafafa; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 6px 8px; }
+    th { background: #f0f0f0; cursor: pointer; }
+    .controls { display:flex; gap:8px; align-items:center; margin: 8px 0; }
+    .small { color:#666; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>SafeStride Progress Dashboard</h2>
+    <button id="btn-refresh">Refresh CSV</button>
+    <div class="small">Open this file in a browser and click Refresh periodically.</div>
+  </header>
+
+  <div class="controls">
+    <label>Load CSV file: <input type="file" id="file-input" accept=".csv" /></label>
+    <span id="status" class="small"></span>
+  </div>
+
+  <section class="cards">
+    <div class="card"><b>Completed runs</b><div id="card-complete">0</div></div>
+    <div class="card"><b>Best RMSE_%BW</b><div id="card-best">-</div></div>
+    <div class="card"><b>Counts by model</b><div id="card-models">-</div></div>
+    <div class="card"><b>Counts by window</b><div id="card-windows">-</div></div>
+  </section>
+
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th data-key="trial">trial</th>
+        <th data-key="sensortag">sensortag</th>
+        <th data-key="model_kind">model_kind</th>
+        <th data-key="window_ms">window_ms</th>
+        <th data-key="rmse_%BW">rmse_%BW</th>
+        <th data-key="mae_%BW">mae_%BW</th>
+        <th data-key="outdir">outdir</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+<script>
+const CSV_PATH = 'leaderboard_all.csv'; // copied here by watcher
+let rows = [];
+let sortKey = 'rmse_%BW';
+let sortAsc = true;
+
+function parseCSV(text){
+  const lines = text.trim().split(/\r?\n/);
+  if(lines.length === 0) return [];
+  const headers = lines[0].split(',');
+  return lines.slice(1).filter(Boolean).map(line=>{
+    const vals = line.split(',');
+    const o = {};
+    headers.forEach((h,i)=> o[h] = vals[i]);
+    if(o['rmse_%BW']) o['rmse_%BW'] = parseFloat(o['rmse_%BW']);
+    if(o['mae_%BW']) o['mae_%BW'] = parseFloat(o['mae_%BW']);
+    if(o['window_ms']) o['window_ms'] = parseInt(o['window_ms']);
+    return o;
+  });
+}
+
+function render(){
+  const tbody = document.querySelector('#tbl tbody');
+  tbody.innerHTML = '';
+  const sorted = [...rows].sort((a,b)=>{
+    const av = a[sortKey]; const bv = b[sortKey];
+    if (av==null && bv!=null) return 1;
+    if (av!=null && bv==null) return -1;
+    if (av==null && bv==null) return 0;
+    if (av < bv) return sortAsc ? -1 : 1;
+    if (av > bv) return sortAsc ? 1 : -1;
+    return 0;
+  });
+  for(const r of sorted){
+    const tr = document.createElement('tr');
+    ['trial','sensortag','model_kind','window_ms','rmse_%BW','mae_%BW','outdir'].forEach(k=>{
+      const td = document.createElement('td');
+      td.textContent = r[k] ?? '';
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  }
+  // Cards
+  document.getElementById('card-complete').textContent = rows.length.toString();
+  const best = rows.filter(r=>r['rmse_%BW']!=null).reduce((m,r)=> Math.min(m,r['rmse_%BW']), Number.POSITIVE_INFINITY);
+  document.getElementById('card-best').textContent = isFinite(best) ? best.toFixed(3) : '-';
+  const byModel = {};
+  const byWin = {};
+  for(const r of rows){
+    byModel[r.model_kind] = (byModel[r.model_kind]||0)+1;
+    byWin[r.window_ms] = (byWin[r.window_ms]||0)+1;
+  }
+  document.getElementById('card-models').textContent = Object.entries(byModel).map(([k,v])=>`${k}:${v}`).join(' ');
+  document.getElementById('card-windows').textContent = Object.entries(byWin).map(([k,v])=>`${k}:${v}`).join(' ');
+}
+
+async function fetchCSV(){
+  document.getElementById('status').textContent = 'Loading leaderboard_all.csv...';
+  try{
+    const resp = await fetch(CSV_PATH);
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const text = await resp.text();
+    rows = parseCSV(text);
+    render();
+    document.getElementById('status').textContent = `Loaded ${rows.length} rows.`;
+  }catch(err){
+    document.getElementById('status').textContent = 'Fetch failed, use file loader.';
+  }
+}
+
+document.getElementById('btn-refresh').addEventListener('click', fetchCSV);
+
+document.querySelectorAll('th[data-key]').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.getAttribute('data-key');
+    if (sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = true; }
+    render();
+  });
+});
+
+document.getElementById('file-input').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{ rows = parseCSV(reader.result); render(); };
+  reader.readAsText(file);
+});
+
+// Try initial fetch
+fetchCSV();
+</script>
+</body>
+</html>

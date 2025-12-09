@@ -1,0 +1,43 @@
+# Node
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn.lock
+pnpm-lock.yaml
+
+# Build/output
+dist/
+build/
+.out/
+.next/
+.temp/
+.tmp/
+coverage/
+
+# Python
+venv/
+.env/
+__pycache__/
+*.pyc
+
+# Data and large stuff
+data/
+datasets/
+logs/
+out/
+work/
+release/
+**/checkpoints/
+*.pt
+*.pth
+*.mp4
+*.zip
+*.tar
+*.tar.gz
+
+# OS
+.DS_Store
+Thumbs.db
+
+# App specific
+app/node_modules/

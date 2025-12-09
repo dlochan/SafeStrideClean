@@ -1,0 +1,47 @@
+# Example vNext experiment suite configuration
+# This defines a small grid of experiments varying model type, features, and window size
+
+base_config: "configs/vnext_example.yaml"
+
+experiments:
+  - name: "fz_raw"
+    tags: ["fz", "no_kinematics", "baseline"]
+    overrides:
+      model:
+        type: "fz"
+      features:
+        enable_kinematics: false
+      training:
+        epochs: 3
+
+  - name: "fz_kinematics"
+    tags: ["fz", "kinematics"]
+    overrides:
+      model:
+        type: "fz"
+      features:
+        enable_kinematics: true
+      training:
+        epochs: 3
+
+  - name: "grf3d_kinematics"
+    tags: ["grf3d", "kinematics", "3d"]
+    overrides:
+      model:
+        type: "grf3d"
+      features:
+        enable_kinematics: true
+      training:
+        epochs: 3
+
+  - name: "fz_small_window"
+    tags: ["fz", "kinematics", "small_window"]
+    overrides:
+      model:
+        type: "fz"
+      features:
+        enable_kinematics: true
+      training:
+        window_size: 128
+        window_stride: 64
+        epochs: 3

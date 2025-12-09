@@ -1,0 +1,47 @@
+# GT small real-data vNext sweep for 3D GRF (Fx, Fy, Fz)
+
+base_config: "configs/vnext_example.yaml"
+
+experiments:
+  - name: "gt_small_fxyz_raw_n"
+    tags: ["gt_small", "fxyz", "raw", "cpu", "N"]
+    overrides:
+      paths:
+        data_root: "data/vnext_gt_real"
+        out_root:  "data/vnext_gt_real_out"
+      data:
+        train_manifest: "manifests/vnext_train_real.csv"
+        val_manifest:   "manifests/vnext_val_real.csv"
+      features:
+        enable_kinematics: false
+      model:
+        type: "grf3d"
+        grf_axes: "fxyz"
+      training:
+        batch_size: 32
+        num_workers: 0
+        window_size: 128
+        window_stride: 32
+        epochs: 5
+        lr: 1e-3
+
+  - name: "gt_small_fxyz_kinematics_n"
+    tags: ["gt_small", "fxyz", "kinematics", "cpu", "N"]
+    overrides:
+      paths:
+        data_root: "data/vnext_gt_real"
+        out_root:  "data/vnext_gt_real_out"
+      data:
+        train_manifest: "manifests/vnext_train_real.csv"
+        val_manifest:   "manifests/vnext_val_real.csv"
+      # Kinematics are enabled via the base config's features block
+      model:
+        type: "grf3d"
+        grf_axes: "fxyz"
+      training:
+        batch_size: 32
+        num_workers: 0
+        window_size: 128
+        window_stride: 32
+        epochs: 5
+        lr: 1e-3

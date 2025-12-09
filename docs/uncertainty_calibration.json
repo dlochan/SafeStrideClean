@@ -1,0 +1,8 @@
+{
+  "pi_nominal": 0.8,
+  "coverage_mean": 0.7907887135796781,
+  "coverage_std": 0.13580820331053262,
+  "band_mean": 213.45306366284112,
+  "n_trials": 24,
+  "recommended_scale": 1.0508806416764855
+}

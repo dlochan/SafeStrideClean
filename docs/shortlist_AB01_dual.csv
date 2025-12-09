@@ -1,0 +1,6 @@
+subject,trial,sensors,model_kind,window_ms,rmse_%BW,mae_%BW,metrics_json_path,outdir
+AB01,AB01_cutting_1_left-fast,thigh-shank,hgb,300,6.309444543743466,4.21126712026706,E:\safestride\out_grid\AB01_cutting_1_left-fast_thigh-shank_hgb_w300\eval\metrics_eval.json,E:\safestride\out_grid\AB01_cutting_1_left-fast_thigh-shank_hgb_w300
+AB01,AB01_cutting_1_left-fast,thigh-shank,hgb,400,6.170761661727849,4.150040293766836,E:\safestride\out_grid\AB01_cutting_1_left-fast_thigh-shank_hgb_w400\eval\metrics_eval.json,E:\safestride\out_grid\AB01_cutting_1_left-fast_thigh-shank_hgb_w400
+AB01,AB01_cutting_1_left-fast,thigh-shank,rf,200,7.391222353409344,4.589601288332783,E:\safestride\out_grid\AB01_cutting_1_left-fast_thigh-shank_rf_w200\eval\metrics_eval.json,E:\safestride\out_grid\AB01_cutting_1_left-fast_thigh-shank_rf_w200
+AB01,AB01_cutting_1_left-fast,thigh-shank,rf,300,6.837437878650436,4.102458090880384,E:\safestride\out_grid\AB01_cutting_1_left-fast_thigh-shank_rf_w300\eval\metrics_eval.json,E:\safestride\out_grid\AB01_cutting_1_left-fast_thigh-shank_rf_w300
+AB01,AB01_cutting_1_left-fast,thigh-shank,ridge,300,46.82964692996524,33.44891951258578,E:\safestride\out_grid\AB01_cutting_1_left-fast_thigh-shank_ridge_w300\eval\metrics_eval.json,E:\safestride\out_grid\AB01_cutting_1_left-fast_thigh-shank_ridge_w300

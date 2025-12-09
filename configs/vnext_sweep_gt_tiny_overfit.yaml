@@ -1,0 +1,42 @@
+# Tiny overfit sweep on GT-small vNext
+#
+# This suite is intended purely for debugging: it trains on a very small
+# number of GT-small trials (1–2 in train and val) for many epochs so that
+# the model can overfit (drive train/val RMSE very low).
+#
+# Expected usage (after running scripts/make_vnext_gt_real.py):
+#   export SAFESTRIDE_DATA_ROOT=/workspace/data  # or similar
+#   python scripts/run_vnext_experiments.py \
+#     --suite configs/vnext_sweep_gt_tiny_overfit.yaml \
+#     --device cuda \
+#     --out-leaderboard data/vnext_gt_real_out/vnext_leaderboard_gt_tiny_overfit_gpu.csv
+#
+# The config below uses dedicated tiny train/val manifests written by
+# scripts/make_vnext_gt_real.py:
+#   data/vnext_gt_real/manifests/vnext_tiny_overfit_train.csv
+#   data/vnext_gt_real/manifests/vnext_tiny_overfit_val.csv
+
+base_config: "configs/vnext_example.yaml"
+
+experiments:
+  - name: "gt_tiny_overfit_fz_bw"
+    tags: ["gt_small", "fz", "bw", "tiny_overfit"]
+    overrides:
+      paths:
+        data_root: "data/vnext_gt_real"
+        out_root:  "data/vnext_gt_real_out"
+      model:
+        type: "fz"
+        target_grf_column: "Fz_BW"
+      data:
+        # Use the tiny overfit manifests (1–2 trials each)
+        train_manifest: "manifests/vnext_tiny_overfit_train.csv"
+        val_manifest:   "manifests/vnext_tiny_overfit_val.csv"
+      training:
+        batch_size: 8
+        num_workers: 0
+        window_size: 128
+        window_stride: 128
+        epochs: 100
+        lr: 1e-3
+        require_grf: true

@@ -1,0 +1,86 @@
+# Clinical thresholds for flags; per-task overrides allowed
+# Defaults apply when task-specific values are not provided
+
+defaults:
+  stiff_landing:
+    rfd_0_50_Ns: 15000    # N/s
+    ttp_ms_max: 60        # time-to-peak upper bound for concern (fast peak)
+    source: "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5763249/"
+    evidence_grade: "C"
+  excess_load_rate:
+    loading_rate_Ns: 20000
+    source: "https://www.oarsijournal.com/article/S1063-4584(20)30438-6/fulltext"
+    evidence_grade: "B"
+  insufficient_flexion:
+    knee_flex_rom_deg_min: 30
+    source: "https://pubmed.ncbi.nlm.nih.gov/20303276/"
+    evidence_grade: "B"
+  bone_stress_exposure:
+    asymmetry_idx_max: 0.20
+    repeated_impact_peak_bw: 4.0
+    source: "https://journals.sagepub.com/doi/10.1177/0363546514567292"
+    evidence_grade: "C"
+  acl_exposure_signal:
+    frontal_sur_mean_deg_max: 10
+    pivot_task: true
+    source: "https://bjsm.bmj.com/content/50/5/313"
+    evidence_grade: "C"
+
+# Optional per-task overrides
+by_task:
+  cutting:
+    stiff_landing:
+      rfd_0_50_Ns: 18000
+      source: "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5763249/"
+      evidence_grade: "C"
+    acl_exposure_signal:
+      frontal_sur_mean_deg_max: 8
+      source: "https://bjsm.bmj.com/content/50/5/313"
+      evidence_grade: "C"
+  normal:
+    insufficient_flexion:
+      knee_flex_rom_deg_min: 25
+      source: "https://pubmed.ncbi.nlm.nih.gov/20303276/"
+      evidence_grade: "B"
+  running:
+    bone_stress_exposure:
+      asymmetry_idx_max: 0.25
+      repeated_impact_peak_bw: 4.5
+      source: "https://journals.sagepub.com/doi/10.1177/0363546514567292"
+      evidence_grade: "C"
+
+mvp:
+  high_impact_loading:
+    peak_vgrf_pctbw_max: 350.0
+    direction: high
+    source: "OARSI2020_WalkingImpact"
+    evidence_grade: "B"
+  stiff_landing:
+    loading_rate_Ns_max: 20000.0
+    ttp_ms_max: 60
+    direction: high
+    source: "PubMed23899938_TTP_Landing"
+    evidence_grade: "C"
+  elevated_asymmetry:
+    ai_max: 0.20
+    direction: high
+    source: "OARSI2020_WalkingImpact"
+    evidence_grade: "B"
+  chronic_load_high:
+    ac_ratio_max: 1.5
+    direction: high
+    source: "OARSI2020_WalkingImpact"
+    evidence_grade: "B"
+
+risk_engine_v1:
+  high_load_low_flex:
+    peak_pctbw_min: 300.0
+    knee_flex_ic_deg_max: 20.0
+    direction: high/low
+    source: "PubMed20303276_KneeFlexGRF"
+    evidence_grade: "B"
+  chronic_load_spike:
+    ac_ratio_max: 1.5
+    direction: high
+    source: "OARSI2020_WalkingImpact"
+    evidence_grade: "B"

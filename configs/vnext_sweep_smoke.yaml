@@ -1,0 +1,41 @@
+# Minimal vNext CPU smoke-test experiment suite
+# Uses a tiny local dataset under testdata/vnext_smoke so it can run quickly on CPU.
+
+base_config: "configs/vnext_example.yaml"
+
+experiments:
+  - name: "smoke_fz_kinematics"
+    tags: ["smoke", "fz", "kinematics", "cpu"]
+    overrides:
+      paths:
+        data_root: "testdata/vnext_smoke"
+        out_root: "testdata/vnext_smoke_out"
+      data:
+        train_manifest: "manifests/vnext_train_smoke.csv"
+        val_manifest: "manifests/vnext_val_smoke.csv"
+      training:
+        batch_size: 2
+        num_workers: 0
+        window_size: 8
+        window_stride: 8
+        epochs: 1
+        lr: 1e-3
+
+  - name: "smoke_fz_raw"
+    tags: ["smoke", "fz", "no_kinematics", "cpu"]
+    overrides:
+      paths:
+        data_root: "testdata/vnext_smoke"
+        out_root: "testdata/vnext_smoke_out"
+      features:
+        enable_kinematics: false
+      data:
+        train_manifest: "manifests/vnext_train_smoke.csv"
+        val_manifest: "manifests/vnext_val_smoke.csv"
+      training:
+        batch_size: 2
+        num_workers: 0
+        window_size: 8
+        window_stride: 8
+        epochs: 1
+        lr: 1e-3

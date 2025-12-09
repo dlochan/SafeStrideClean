@@ -1,0 +1,2 @@
+- Field run input=E:\safestride\datasets\GrouvelDataset\researchdata zip=SafeStride_FieldValidation_20251102.zip md5=e73b83f60dd78343324121ce086c0d94
+- Field run input=E:\safestride\datasets\GrouvelDataset\researchdata zip=SafeStride_FieldValidation_20251102.zip md5=f408b3b1b75c2abbe5822bea7df1cba5

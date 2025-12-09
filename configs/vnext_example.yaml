@@ -1,0 +1,42 @@
+# Example config for SafeStride vNext Fz training
+# This drives scripts/train_vnext.py and assumes that GRF CSVs
+# contain a vertical force column named one of: Fz_N, Fz_BW, or Fz_%BW.
+
+paths:
+  # Root where manifests and data live. Override this or set
+  # SAFESTRIDE_DATA_ROOT in your environment.
+  # For the GT-small examples, this is typically "data/vnext_gt_real".
+  data_root: "data"
+  out_root: "out"
+
+model:
+  # model.type options:
+  #   "fz"    → vertical GRF only (Fz)
+  #   "grf3d" → 3D GRF [Fx, Fy, Fz] (requires Fx/Fy/Fz columns in GRF CSVs)
+  type: "fz"
+  per_sensor_hidden: 32
+  fusion_hidden: 64
+
+features:
+  # Optional kinematic feature augmentation on top of raw IMU channels.
+  # If this block is omitted entirely, features are disabled by default.
+  enable_kinematics: true
+
+data:
+  # Pattern A: separate manifests (default in this example).
+  # These paths are resolved relative to paths.data_root.
+  train_manifest: "manifests/vnext_train_manifest.csv"
+  val_manifest: "manifests/vnext_val_manifest.csv"
+
+  # Pattern B (alternative, not active here):
+  # manifest: "manifests/vnext_all_trials.csv"
+  # split_column: "split"  # values: "train" or "val"
+
+training:
+  batch_size: 8
+  num_workers: 0
+  window_size: 256      # samples per window
+  window_stride: 128    # stride between windows
+  epochs: 5
+  lr: 1e-3
+  require_grf: true     # only use windows where GRF is available

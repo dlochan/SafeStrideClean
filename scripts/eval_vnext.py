@@ -1,0 +1,373 @@
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Any, Dict, List
+
+import random
+
+import numpy as np
+import torch
+from torch.utils.data import DataLoader
+
+repo_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(repo_root))
+sys.path.insert(0, str(repo_root / "src"))
+
+from vnext.core.config import load_config
+from vnext.core.paths import SafeStridePaths
+from vnext.core.logging_utils import get_logger
+from vnext.core.normalization import ChannelNormStats
+from vnext.core.metrics import GRFMetrics, compute_grf_metrics
+from vnext.data.datasets import DualIMUTrialDataset, WindowedIMUDataset
+from vnext.data.imu_schema import get_feature_columns, get_sensor_slices
+from vnext.models.vnext_fz import VNextFzModel
+from vnext.models.vnext_grf3d import VNextGRF3DModel
+from vnext.feats.kinematics import KinematicFeatureBuilder, KinematicFeatureConfig
+
+
+def set_seed(seed: int) -> None:
+    """Set random seeds for reproducible evaluation runs."""
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="SafeStride vNext evaluation script")
+    ap.add_argument("--config", required=True, help="Path to YAML config file")
+    ap.add_argument("--run-dir", required=True, help="Path to existing run directory")
+    ap.add_argument(
+        "--eval-manifest",
+        "--manifest",
+        dest="eval_manifest",
+        help=(
+            "Optional manifest path relative to paths.data_root; if omitted, "
+            "uses data.val_manifest or falls back to data.train_manifest"
+        ),
+    )
+    ap.add_argument(
+        "--checkpoint",
+        choices=["last", "best"],
+        default="best",
+        help="Which checkpoint to evaluate: 'best' (default) or 'last'",
+    )
+    ap.add_argument("--device", default="cpu", help="Device string for torch (e.g. cpu or cuda)")
+    ap.add_argument("--seed", type=int, default=None, help="Optional random seed for reproducibility")
+    args = ap.parse_args()
+
+    logger = get_logger("eval_vnext")
+
+    if args.seed is not None:
+        set_seed(args.seed)
+
+    cfg = load_config(args.config)
+    cfg_paths: Dict[str, Any] = cfg.get("paths", {}) or {}
+    paths = SafeStridePaths.from_env_or_defaults(cfg_paths)
+
+    run_dir = Path(args.run_dir)
+    if not run_dir.exists() or not run_dir.is_dir():
+        raise SystemExit(f"run_dir does not exist or is not a directory: {run_dir}")
+
+    logger.info(f"Evaluating run directory: {run_dir}")
+
+    data_cfg: Dict[str, Any] = cfg.get("data", {}) or {}
+
+    # Model configuration
+    model_cfg: Dict[str, Any] = cfg.get("model", {}) or {}
+    model_type = str(model_cfg.get("type", "fz")).lower()
+    per_sensor_hidden = int(model_cfg.get("per_sensor_hidden", 32))
+    fusion_hidden = int(model_cfg.get("fusion_hidden", 64))
+    target_grf_column: str | None = model_cfg.get("target_grf_column")
+
+    # Optional feature configuration
+    features_cfg_dict: Dict[str, Any] = cfg.get("features", {}) or {}
+    features_cfg = KinematicFeatureConfig(
+        enable_kinematics=bool(features_cfg_dict.get("enable_kinematics", False))
+    )
+
+    # Training / window configuration (mirrors train_vnext defaults)
+    train_cfg: Dict[str, Any] = cfg.get("training", {}) or {}
+    batch_size = int(train_cfg.get("batch_size", 4))
+    num_workers = int(train_cfg.get("num_workers", 0))
+    window_size = int(train_cfg.get("window_size", 256))
+    window_stride = int(train_cfg.get("window_stride", 128))
+    require_grf = bool(train_cfg.get("require_grf", True))
+
+    # Decide GRF axes. If model.grf_axes is provided, honor it (with
+    # "fxyz" treated as an alias for 3D); otherwise derive from model.type.
+    raw_grf_axes = model_cfg.get("grf_axes")
+    if raw_grf_axes is not None:
+        grf_axes = str(raw_grf_axes).lower()
+        if grf_axes == "fxyz":
+            grf_axes = "3d"
+    else:
+        if model_type == "fz":
+            grf_axes = "fz"
+        elif model_type == "grf3d":
+            grf_axes = "3d"
+        else:
+            raise SystemExit(f"Unknown model.type '{model_type}'")
+
+    if grf_axes not in {"fz", "3d"}:
+        raise SystemExit(f"Unsupported grf_axes '{grf_axes}', expected 'fz' or '3d'")
+
+    # Resolve evaluation manifest.
+    # Default behavior evaluates on data.val_manifest (or data.train_manifest as fallback).
+    # When an explicit --eval-manifest/--manifest override is provided, we treat it as a
+    # held-out test manifest and label outputs with a "test" suffix.
+    manifest_rel_cli = args.eval_manifest
+    eval_manifest_path: Path | None = None
+    metrics_suffix = "val"
+    if manifest_rel_cli:
+        eval_manifest_path = paths.data_root / str(manifest_rel_cli)
+        metrics_suffix = "test"
+        logger.info(f"Using manifest from CLI: {eval_manifest_path}")
+    else:
+        val_manifest_rel = data_cfg.get("val_manifest")
+        train_manifest_rel = data_cfg.get("train_manifest")
+        if val_manifest_rel is not None:
+            eval_manifest_path = paths.data_root / str(val_manifest_rel)
+            logger.info(f"Using data.val_manifest for evaluation: {eval_manifest_path}")
+        elif train_manifest_rel is not None:
+            eval_manifest_path = paths.data_root / str(train_manifest_rel)
+            logger.warning(
+                "No data.val_manifest configured; falling back to data.train_manifest for evaluation."
+            )
+            logger.info(f"Using data.train_manifest for evaluation: {eval_manifest_path}")
+
+    if eval_manifest_path is None:
+        raise SystemExit(
+            "No evaluation manifest available. Provide --manifest or configure data.val_manifest "
+            "or data.train_manifest in the config."
+        )
+
+    if not eval_manifest_path.exists():
+        raise SystemExit(f"Evaluation manifest not found: {eval_manifest_path}")
+
+    logger.info(f"Eval manifest: {eval_manifest_path}")
+
+    # Build dataset and loader
+    base_eval = DualIMUTrialDataset(
+        eval_manifest_path,
+        grf_axes=grf_axes,
+        target_grf_column=target_grf_column,
+    )
+    eval_ds = WindowedIMUDataset(
+        base_dataset=base_eval,
+        window_size=window_size,
+        window_stride=window_stride,
+        require_grf=require_grf,
+    )
+
+    if len(eval_ds) == 0:
+        raise SystemExit("No evaluation windows available; check manifest and window configuration.")
+
+    eval_loader = DataLoader(eval_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+
+    device = torch.device(args.device)
+
+    # Rebuild feature builder and model
+    feature_cols = get_feature_columns()
+    sensor_slices = get_sensor_slices(feature_cols)
+    feature_builder = KinematicFeatureBuilder(
+        in_feature_names=feature_cols,
+        sensor_slices=sensor_slices,
+        cfg=features_cfg,
+    )
+    in_channels = len(feature_builder.out_feature_names)
+
+    if model_type == "fz":
+        model = VNextFzModel(
+            in_channels=in_channels,
+            sensor_slices=sensor_slices,
+            per_sensor_hidden=per_sensor_hidden,
+            fusion_hidden=fusion_hidden,
+        ).to(device)
+    else:  # "grf3d"
+        model = VNextGRF3DModel(
+            in_channels=in_channels,
+            sensor_slices=sensor_slices,
+            per_sensor_hidden=per_sensor_hidden,
+            fusion_hidden=fusion_hidden,
+        ).to(device)
+
+    logger.info(f"Using model.type='{model_type}', grf_axes='{grf_axes}'")
+    logger.info(f"Model in_channels={in_channels}, enable_kinematics={features_cfg.enable_kinematics}")
+
+    # Load normalization stats from run_dir
+    norm_stats_path = run_dir / "norm_stats.json"
+    if not norm_stats_path.exists():
+        raise SystemExit(f"norm_stats.json not found in run_dir: {norm_stats_path}")
+    norm_stats_dict = json.loads(norm_stats_path.read_text(encoding="utf-8"))
+    norm_stats = ChannelNormStats.from_dict(norm_stats_dict)
+
+    # Decide which checkpoint to load (best vs last)
+    ckpt_name = "model_best.pt" if args.checkpoint == "best" else "model_last.pt"
+    ckpt_path = run_dir / ckpt_name
+
+    if args.checkpoint == "best" and not ckpt_path.exists():
+        logger.warning(
+            f"Requested checkpoint='best' but {ckpt_path} not found; falling back to model_last.pt"
+        )
+        ckpt_name = "model_last.pt"
+        ckpt_path = run_dir / ckpt_name
+
+    if not ckpt_path.exists():
+        raise SystemExit(f"Checkpoint not found: {ckpt_path}")
+
+    state_dict = torch.load(ckpt_path, map_location=device)
+    model.load_state_dict(state_dict)
+    model.to(device)
+    model.eval()
+    logger.info(f"Loaded checkpoint: {ckpt_path}")
+
+    # Eval loop: accumulate metrics and per-window summaries
+    n_batches = 0
+    metrics_accum: Dict[str, float] = {}
+    window_rows: List[Dict[str, Any]] = []
+
+    with torch.no_grad():
+        for batch in eval_loader:
+            imu = batch["imu"].to(device)  # (B, T, C_in)
+            grf_v = batch["grf_v"]
+
+            if grf_v is None:
+                continue
+
+            grf_v = grf_v.to(device)  # (B, T, D)
+
+            imu = feature_builder.transform(imu)
+            imu = norm_stats.normalize(imu)
+
+            y_hat = model(imu)  # (B, T, D)
+
+            batch_metrics = compute_grf_metrics(y_hat, grf_v, axes=grf_axes)
+
+            # Accumulate metrics by summing; we'll average at the end
+            for k, v in batch_metrics.to_dict().items():
+                if isinstance(v, dict):
+                    for ak, av in v.items():
+                        key = f"{k}.{ak}"
+                        metrics_accum[key] = metrics_accum.get(key, 0.0) + float(av)
+                else:
+                    key = k
+                    metrics_accum[key] = metrics_accum.get(key, 0.0) + float(v)
+
+            # Per-window summaries
+            trial_ids: List[str] = batch["trial_id"]
+            start_idxs = batch["start_idx"]
+
+            # y_hat, grf_v: (B, T, D)
+            # Compute mean and peak over time dimension (dim=1)
+            y_mean = y_hat.mean(dim=1)  # (B, D)
+            y_peak, _ = y_hat.max(dim=1)  # (B, D)
+
+            for i in range(y_hat.shape[0]):
+                trial_id = str(trial_ids[i])
+                start_idx = int(start_idxs[i])
+
+                row: Dict[str, Any] = {
+                    "trial_id": trial_id,
+                    "start_idx": start_idx,
+                }
+
+                if grf_axes == "fz":
+                    # Single-axis Fz
+                    row["Fz_mean"] = float(y_mean[i, 0].item())
+                    row["Fz_peak"] = float(y_peak[i, 0].item())
+                else:
+                    # 3D GRF: Fx, Fy, Fz
+                    row["Fx_mean"] = float(y_mean[i, 0].item())
+                    row["Fy_mean"] = float(y_mean[i, 1].item())
+                    row["Fz_mean"] = float(y_mean[i, 2].item())
+                    row["Fx_peak"] = float(y_peak[i, 0].item())
+                    row["Fy_peak"] = float(y_peak[i, 1].item())
+                    row["Fz_peak"] = float(y_peak[i, 2].item())
+
+                window_rows.append(row)
+
+            n_batches += 1
+
+    if n_batches == 0:
+        raise SystemExit("No evaluation batches with GRF were seen; cannot compute metrics.")
+
+    # Average metrics across batches (same pattern as train_vnext)
+    averaged: Dict[str, Any] = {k: v / n_batches for k, v in metrics_accum.items()}
+    mse_per_axis: Dict[str, float] = {}
+    rmse_per_axis: Dict[str, float] = {}
+    mse_mean = float(averaged.get("mse_mean", float("nan")))
+    rmse_mean = float(averaged.get("rmse_mean", float("nan")))
+    for k, v in averaged.items():
+        if k.startswith("mse_per_axis."):
+            axis = k.split(".", 1)[1]
+            mse_per_axis[axis] = float(v)
+        elif k.startswith("rmse_per_axis."):
+            axis = k.split(".", 1)[1]
+            rmse_per_axis[axis] = float(v)
+
+    eval_metrics = GRFMetrics(
+        mse_per_axis=mse_per_axis,
+        rmse_per_axis=rmse_per_axis,
+        mse_mean=mse_mean,
+        rmse_mean=rmse_mean,
+    )
+
+    # Prepare eval output directory under run_dir
+    eval_dir = run_dir / "eval"
+    eval_dir.mkdir(parents=True, exist_ok=True)
+
+    # Write metrics JSON. We always write both a suffixed file
+    # (eval_metrics_val.json or eval_metrics_test.json) and a legacy
+    # eval_metrics.json for backward compatibility with tooling that
+    # expects the unsuffixed name.
+    eval_metrics_payload = {
+        "model_type": model_type,
+        "grf_axes": grf_axes,
+        "manifest": str(eval_manifest_path),
+        "checkpoint": ckpt_name,
+        "metrics": eval_metrics.to_dict(),
+    }
+    metrics_json = json.dumps(eval_metrics_payload, indent=2)
+
+    eval_metrics_path = eval_dir / f"eval_metrics_{metrics_suffix}.json"
+    eval_metrics_path.write_text(metrics_json, encoding="utf-8")
+
+    legacy_eval_metrics_path = eval_dir / "eval_metrics.json"
+    legacy_eval_metrics_path.write_text(metrics_json, encoding="utf-8")
+
+    # Write per-window CSV. As with metrics, we keep both suffixed and
+    # legacy filenames.
+    import csv
+
+    eval_windows_path = eval_dir / f"eval_windows_{metrics_suffix}.csv"
+    legacy_eval_windows_path = eval_dir / "eval_windows.csv"
+    if window_rows:
+        fieldnames = list(window_rows[0].keys())
+        for path in (eval_windows_path, legacy_eval_windows_path):
+            with path.open("w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                for row in window_rows:
+                    writer.writerow(row)
+
+    logger.info(
+        f"Evaluating run_dir={run_dir} on manifest={eval_manifest_path} "
+        f"using checkpoint={ckpt_name}, model_type={model_type}, grf_axes={grf_axes}"
+    )
+    logger.info(f"Eval metrics written to: {eval_metrics_path} and {legacy_eval_metrics_path}")
+    logger.info(f"Eval window summaries written to: {eval_windows_path} and {legacy_eval_windows_path}")
+    logger.info(
+        "Final eval RMSE_mean={:.4f}, per-axis={}".format(
+            eval_metrics.rmse_mean, eval_metrics.rmse_per_axis
+        )
+    )
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()

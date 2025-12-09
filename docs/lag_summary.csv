@@ -1,0 +1,13 @@
+trial,lag_samples,lag_ms,within_cap,path
+AB01_cutting_1_left-fast,0,0.0,True,C:\Users\locha\Documents\safestride\data\working\AB01_cutting_1_left-fast_grf_active_shifted.csv.lag.json
+AB01_cutting_leftfast,0,0.0,True,C:\Users\locha\Documents\safestride\data\working\AB01_cutting_leftfast_grf_active_shifted.csv.lag.json
+AB02_cutting_1_left-fast,0,0.0,True,C:\Users\locha\Documents\safestride\data\working\AB02_cutting_1_left-fast_grf_active_shifted.csv.lag.json
+AB03_cutting_1_left-fast,-3,-15.0,False,C:\Users\locha\Documents\safestride\data\working\AB03_cutting_1_left-fast_grf_active_shifted.csv.lag.json
+AB05_cutting_1_left-fast,0,0.0,True,C:\Users\locha\Documents\safestride\data\working\AB05_cutting_1_left-fast_grf_active_shifted.csv.lag.json
+AB06_cutting_1_left-fast,-80,-400.0,False,C:\Users\locha\Documents\safestride\data\working\AB06_cutting_1_left-fast_grf_active_shifted.csv.lag.json
+AB07_cutting_1_left-fast,-2,-10.0,True,C:\Users\locha\Documents\safestride\data\working\AB07_cutting_1_left-fast_grf_active_shifted.csv.lag.json
+AB08_cutting_1_left-fast,0,0.0,True,C:\Users\locha\Documents\safestride\data\working\AB08_cutting_1_left-fast_grf_active_shifted.csv.lag.json
+AB09_cutting_1_left-fast,0,0.0,True,C:\Users\locha\Documents\safestride\data\working\AB09_cutting_1_left-fast_grf_active_shifted.csv.lag.json
+AB10_cutting_1_left-fast,-1,-5.0,True,C:\Users\locha\Documents\safestride\data\working\AB10_cutting_1_left-fast_grf_active_shifted.csv.lag.json
+AB11_cutting_1_left-fast,-75,-375.0,False,C:\Users\locha\Documents\safestride\data\working\AB11_cutting_1_left-fast_grf_active_shifted.csv.lag.json
+AB12_cutting_1_left-fast,-121,-605.0,False,C:\Users\locha\Documents\safestride\data\working\AB12_cutting_1_left-fast_grf_active_shifted.csv.lag.json

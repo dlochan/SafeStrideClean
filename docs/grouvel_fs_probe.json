@@ -1,0 +1,308 @@
+{
+  "samples": [
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_TUG_02.csv",
+      "time_col": "x_Time",
+      "fs_est": 97.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_TUG_01.csv",
+      "time_col": "x_Time",
+      "fs_est": 97.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Gait_04.csv",
+      "time_col": "x_Time",
+      "fs_est": 25.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Static_01.csv",
+      "time_col": "x_Time",
+      "fs_est": 5.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_CalibrationTask_04.csv",
+      "time_col": "x_Time",
+      "fs_est": 98.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_FastGait_02.csv",
+      "time_col": "x_Time",
+      "fs_est": 26.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_CalibrationTask_05.csv",
+      "time_col": "x_Time",
+      "fs_est": 99.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_CalibrationTask_03.csv",
+      "time_col": "x_Time",
+      "fs_est": 98.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Gait_01.csv",
+      "time_col": "LFHD_x",
+      "fs_est": 66.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Gait_03.csv",
+      "time_col": "LFHD_x",
+      "fs_est": 60.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_FastGait_01.csv",
+      "time_col": "LFHD_x",
+      "fs_est": 49.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Sitting_01.csv",
+      "time_col": "x_Time",
+      "fs_est": 98.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Gait_06.csv",
+      "time_col": "x_Time",
+      "fs_est": 27.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Synchronization_01.csv",
+      "time_col": null,
+      "fs_est": null,
+      "stream": "imu"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Synchronization_03.csv",
+      "time_col": "x_Time",
+      "fs_est": 98.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_SlowGait_02.csv",
+      "time_col": "x_Time",
+      "fs_est": 36.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Gait_08.csv",
+      "time_col": "x_Time",
+      "fs_est": 30.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_SitToStand_01.csv",
+      "time_col": "x_Time",
+      "fs_est": 91.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Running_01.csv",
+      "time_col": "LFHD_x",
+      "fs_est": 36.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Synchronization_05.csv",
+      "time_col": "x_Time",
+      "fs_est": 100.0,
+      "stream": "imu"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Gait_05.csv",
+      "time_col": "LFHD_x",
+      "fs_est": 60.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Synchronization_04.csv",
+      "time_col": "x_Time",
+      "fs_est": 96.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_2minWalk_01.csv",
+      "time_col": "LFHD_x",
+      "fs_est": 66.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Running_02.csv",
+      "time_col": "x_Time",
+      "fs_est": 20.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_CalibrationTask_02.csv",
+      "time_col": "RTIB_z",
+      "fs_est": 663.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Gait_02.csv",
+      "time_col": "x_Time",
+      "fs_est": 31.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Synchronization_02.csv",
+      "time_col": "x_Time",
+      "fs_est": 97.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_2minWalk_02.csv",
+      "time_col": "LFHD_x",
+      "fs_est": 65.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_SlowGait_01.csv",
+      "time_col": "LFHD_x",
+      "fs_est": 118.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_CalibrationTask_01.csv",
+      "time_col": "x_Time",
+      "fs_est": 99.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_2minWalk_03.csv",
+      "time_col": "LFHD_x",
+      "fs_est": 67.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_SitToStand_02.csv",
+      "time_col": "x_Time",
+      "fs_est": 86.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P07_S01\\SYNC_DATA\\P07_S01_Gait_07.csv",
+      "time_col": "LFHD_x",
+      "fs_est": 58.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_Synchronization_01.csv",
+      "time_col": null,
+      "fs_est": null,
+      "stream": "imu"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_Gait_04.csv",
+      "time_col": "x_Time",
+      "fs_est": 33.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_Gait_03.csv",
+      "time_col": "LFHD_x",
+      "fs_est": 77.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_Gait_11.csv",
+      "time_col": "LFHD_x",
+      "fs_est": 77.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_Gait_10.csv",
+      "time_col": "x_Time",
+      "fs_est": 38.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_Gait_02.csv",
+      "time_col": "x_Time",
+      "fs_est": 30.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_2minWalk_02.csv",
+      "time_col": "LFHD_x",
+      "fs_est": 78.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_Gait_12.csv",
+      "time_col": "x_Time",
+      "fs_est": 31.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_2minWalk_01.csv",
+      "time_col": "LFHD_x",
+      "fs_est": 75.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_Gait_01.csv",
+      "time_col": "LFHD_x",
+      "fs_est": 84.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_CalibrationTask_01.csv",
+      "time_col": "x_Time",
+      "fs_est": 97.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_Gait_05.csv",
+      "time_col": "LFHD_x",
+      "fs_est": 73.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_SitToStand_02.csv",
+      "time_col": "x_Time",
+      "fs_est": 79.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_Gait_08.csv",
+      "time_col": "x_Time",
+      "fs_est": 35.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_CalibrationTask_02.csv",
+      "time_col": "x_Time",
+      "fs_est": 97.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_Static_01.csv",
+      "time_col": "x_Time",
+      "fs_est": 5.0,
+      "stream": "unknown"
+    },
+    {
+      "path": "E:\\safestride\\datasets\\GrouvelDataset\\researchdata\\P04_S01\\SYNC_DATA\\P04_S01_Gait_06.csv",
+      "time_col": "x_Time",
+      "fs_est": 30.0,
+      "stream": "unknown"
+    }
+  ],
+  "summary_fs": {
+    "unknown": 67.0,
+    "imu": 100.0
+  }
+}

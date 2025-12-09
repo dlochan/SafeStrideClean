@@ -1,0 +1,29 @@
+name: safestride
+
+# Conda environment for SafeStride vNext and supporting scripts.
+# Target Python: 3.10
+# Target CUDA: 11.8 (for GPU-enabled PyTorch builds)
+
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+
+dependencies:
+  - python=3.10
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn=1.7.0
+  - pyarrow
+  - pyyaml
+  - matplotlib
+  - joblib
+  # Core deep-learning stack (PyTorch + CUDA runtime where available)
+  - pytorch>=2.1,<2.3
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=11.8        # On CPU-only setups you can remove this line.
+  - pip
+  - pip:
+      - ezc3d

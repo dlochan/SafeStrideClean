@@ -1,0 +1,80 @@
+# Real-data vNext smoke suite using Georgia Tech ProcessedData
+
+base_config: "configs/vnext_example.yaml"
+
+experiments:
+  - name: "real_fz_kinematics"
+    tags: ["real", "fz", "kinematics", "cpu"]
+    overrides:
+      paths:
+        data_root: "data/vnext_gt_smoke"
+        out_root: "data/vnext_gt_smoke_out"
+      data:
+        train_manifest: "manifests/vnext_train_real.csv"
+        val_manifest:   "manifests/vnext_val_real.csv"
+      training:
+        batch_size: 2
+        num_workers: 0
+        window_size: 64
+        window_stride: 32
+        epochs: 1
+        lr: 1e-3
+
+  - name: "real_fz_raw_bw"
+    tags: ["real", "fz", "no_kinematics", "cpu", "bw"]
+    overrides:
+      paths:
+        data_root: "data/vnext_gt_smoke"
+        out_root: "data/vnext_gt_smoke_out"
+      features:
+        enable_kinematics: false
+      model:
+        target_grf_column: "Fz_BW"
+      data:
+        train_manifest: "manifests/vnext_train_real.csv"
+        val_manifest:   "manifests/vnext_val_real.csv"
+      training:
+        batch_size: 2
+        num_workers: 0
+        window_size: 64
+        window_stride: 32
+        epochs: 1
+        lr: 1e-3
+
+  - name: "real_fz_kinematics_bw"
+    tags: ["real", "fz", "kinematics", "cpu", "bw"]
+    overrides:
+      paths:
+        data_root: "data/vnext_gt_smoke"
+        out_root: "data/vnext_gt_smoke_out"
+      model:
+        target_grf_column: "Fz_BW"
+      data:
+        train_manifest: "manifests/vnext_train_real.csv"
+        val_manifest:   "manifests/vnext_val_real.csv"
+      training:
+        batch_size: 2
+        num_workers: 0
+        window_size: 64
+        window_stride: 32
+        epochs: 1
+        lr: 1e-3
+
+  - name: "real_fz_raw"
+    tags: ["real", "fz", "no_kinematics", "cpu"]
+    overrides:
+      paths:
+        data_root: "data/vnext_gt_smoke"
+        out_root: "data/vnext_gt_smoke_out"
+      features:
+        enable_kinematics: false
+      data:
+        train_manifest: "manifests/vnext_train_real.csv"
+        val_manifest:   "manifests/vnext_val_real.csv"
+      training:
+        batch_size: 2
+        num_workers: 0
+        window_size: 64
+        window_stride: 32
+        epochs: 1
+        lr: 1e-3

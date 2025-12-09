@@ -1,0 +1,8 @@
+{
+  "target": 0.8,
+  "tolerance": 0.02,
+  "pre_coverage": 0.6468840016321652,
+  "chosen_scale": 1.5539349449099973,
+  "post_coverage_est": 0.7907408014736106,
+  "n_trials": 24
+}

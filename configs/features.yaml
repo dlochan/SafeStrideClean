@@ -1,0 +1,16 @@
+# configs/features.yaml
+# Minimal feature config used by the grid script
+
+window_ms_grid: [200, 300, 400]
+
+preprocess:
+  gravity_remove: "mean"   # or "none"
+  gyro_drift: false
+  clip_g: null
+
+welch:
+  enabled: true
+  nperseg: 64
+
+convbank:
+  enabled: false

@@ -1,0 +1,8 @@
+# Alternate dataset config for dual sensors using standardized column suffixes
+# This preserves fs_hz and default_bw_kg while mapping sensor_sets to ['thigh','shank']
+
+dataset_root: "E:/safestride/datasets/ProcessedData"
+fs_hz: 200
+default_bw_kg: 78.9
+sensor_sets: ["thigh", "shank"]
+tasks_to_skip: []

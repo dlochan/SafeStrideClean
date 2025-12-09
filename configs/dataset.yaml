@@ -1,0 +1,48 @@
+# configs/dataset.yaml
+# Central dataset configuration (single source root)
+
+dataset_root: "E:/safestride/datasets/ProcessedData"
+
+# Default sampling rate (Hz)
+fs_hz: 200
+
+# Default BW if subject-specific mass is not provided elsewhere
+default_bw_kg: 78.9
+
+# Dual-sensor setup (left side)
+sensor_sets: ["lpthigh", "lshank"]
+
+# Tasks to skip entirely (optional)
+tasks_to_skip: ["stairs", "jump", "lift"]
+
+# Subject masses (kg)
+subject_masses:
+  AB01: 78.9
+  AB02: 82.2
+  AB03: 113.5
+  AB05: 71.5
+  AB06: 79.1
+  AB07: 62.3
+  AB08: 87.6
+  AB09: 84.1
+  AB10: 67.5
+  AB11: 65.1
+  AB12: 64.0
+  AB13: 67.6
+
+# Truth axes mapping for Grouvel force-plate CSVs (edit as needed)
+truth_axes:
+  ap_axis: Fx
+  ml_axis: Fy
+  vz_axis: Fz
+  ap_sign: 1
+  ml_sign: 1
+  vz_sign: 1
+
+# Heavy artifact roots (prefer E:) — used by tools.path_config
+data_root: "E:/safestride/data/raw"
+work_root: "E:/safestride/data/working"
+out_root: "E:/safestride/out"
+release_root: "E:/safestride/release"
+log_root: "E:/safestride/logs"
+doc_root: "E:/safestride/docs"

@@ -1,0 +1,2 @@
+peak_fz_pctbw,impulse_n*s,ttp_ms,stance_time_ms,rfd_0_50,rfd_0_100,loading_rate_Ns,knee_flex_rom_deg,knee_flex_peak_deg,frontal_excursion_deg,jerk_rms,stiff_landing,excess_load_rate,insufficient_flexion,trial,task,subject,outdir,rmse_pctbw
+96.43940781905108,12106.917006063502,20105.0,30105.000000000025,652.710651892671,423.86146169807375,213.8625042260873,,,,,False,False,False,AB01_cutting_1_left-slow_imu_sim,unknown,,C:\Users\locha\Documents\safestride\mvp\out\AB01_cutting_1_left-slow_imu_sim,0.0

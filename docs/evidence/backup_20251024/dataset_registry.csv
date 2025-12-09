@@ -1,0 +1,4 @@
+dataset_name,doi_or_url,license,sensors,imu_placements,fs_hz,tasks,n_subjects,provenance_path,notes
+Georgia Tech SafeStride IMU-GRF,TBD,TBD,IMU,thigh,shank,pelvis,200,varied locomotion,13,E:\safestride\datasets\ProcessedData,Internal curation; alignments and flags tracked in WORK_ROOT
+Grouvel "Gautier" Scientific Data,TBD,TBD,IMU+force plate,lower limbs,200,walking/running,TBD,External dataset; see provenance ledger,To be confirmed
+Camargo Locomotion Dataset,TBD,TBD,IMU+EMG+GRF,lower limbs,200,walk/run/stairs,TBD,External dataset; see provenance ledger,To be confirmed

@@ -1,0 +1,12 @@
+subject,trial,model_kind,window_ms,rmse_%BW,outdir
+AB01,AB01_stairs_1_1_up,hgb,400,0.0804406085127463,E:\safestride\out_grid\AB01\AB01_stairs_1_1_up_lshank_hgb_w400
+AB02,AB02_squats_1_25lbs,rf,300,1.5303346676560692,E:\safestride\out_grid\AB02_squats_1_25lbs_rpelvis_rf_w300
+AB03,AB03_lift_weight_2_0lbs-l-l,rf,300,2.82074349637515,E:\safestride\out_grid\AB03_lift_weight_2_0lbs-l-l_rpelvis_rf_w300
+AB05,AB05_cutting_1_left-fast,rf,300,6.500492437908186,E:\safestride\out_grid\AB05_cutting_1_left-fast_kneepair_rf_w300
+AB06,AB06_cutting_1_left-fast,hgb,300,6.971096619598434,E:\safestride\out_grid\AB06_cutting_1_left-fast_kneepair_hgb_w300
+AB07,AB07_cutting_1_left-fast,rf,300,4.72692044319271,E:\safestride\out_grid\AB07_cutting_1_left-fast_kneepair_rf_w300
+AB08,AB08_cutting_1_left-fast,rf,300,6.568255758652105,E:\safestride\out_grid\AB08_cutting_1_left-fast_kneepair_rf_w300
+AB09,AB09_cutting_1_left-fast,hgb,400,6.755221164198008,E:\safestride\out_grid\AB09_cutting_1_left-fast_kneepair_hgb_w400
+AB10,AB10_cutting_1_left-fast,rf,300,4.5771729442102185,E:\safestride\out_grid\AB10_cutting_1_left-fast_kneepair_rf_w300
+AB11,AB11_cutting_1_left-fast,rf,200,5.717096624238977,E:\safestride\out_grid\AB11_cutting_1_left-fast_kneepair_rf_w200
+AB12,AB12_cutting_1_left-fast,rf,300,4.305064000844846,E:\safestride\out_grid\AB12_cutting_1_left-fast_kneepair_rf_w300
