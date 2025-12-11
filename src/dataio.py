@@ -208,6 +208,21 @@ def save_predicted_grf(time_s: np.ndarray, Fz_BW: np.ndarray, bw_kg: float, out_
     df.to_csv(out_csv, index=False)
 
 
+# Optional vNext dataset aliases. These simply re-export the canonical vNext
+# dataset classes when vNext is available, without introducing any new
+# dependency from vNext back into dataio.
+try:
+    from vnext.data.datasets import DualIMUTrialDataset as _DualIMUTrialDataset
+    from vnext.data.datasets import WindowedIMUDataset as _WindowedIMUDataset
+
+    DualIMUTrialDataset = _DualIMUTrialDataset
+    WindowedIMUDataset = _WindowedIMUDataset
+except Exception:
+    # vNext not available in this environment; core dataio functionality
+    # remains usable without the vNext-specific dataset classes.
+    pass
+
+
 if __name__ == "__main__":
     sample_imu_path = "sample_imu.csv"
     sample_grf_path = "sample_grf.csv"

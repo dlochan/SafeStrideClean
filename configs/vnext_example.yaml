@@ -3,11 +3,11 @@
 # contain a vertical force column named one of: Fz_N, Fz_BW, or Fz_%BW.
 
 paths:
-  # Root where manifests and data live. Override this or set
+  # Root where manifests and canonical GT-small data live. Override this or set
   # SAFESTRIDE_DATA_ROOT in your environment.
-  # For the GT-small examples, this is typically "data/vnext_gt_real".
-  data_root: "data"
-  out_root: "out"
+  # For the GT-small examples, this is "data/vnext_gt_real".
+  data_root: "data/vnext_gt_real"
+  out_root: "data/vnext_gt_real_out"
 
 model:
   # model.type options:
@@ -25,8 +25,10 @@ features:
 data:
   # Pattern A: separate manifests (default in this example).
   # These paths are resolved relative to paths.data_root.
-  train_manifest: "manifests/vnext_train_manifest.csv"
-  val_manifest: "manifests/vnext_val_manifest.csv"
+  # For GT-small, these point at the real/val manifests built by
+  # scripts/make_vnext_gt_real.py under data/vnext_gt_real/.
+  train_manifest: "manifests/vnext_train_real.csv"
+  val_manifest: "manifests/vnext_val_real.csv"
 
   # Pattern B (alternative, not active here):
   # manifest: "manifests/vnext_all_trials.csv"
