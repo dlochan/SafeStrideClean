@@ -21,7 +21,7 @@ __pycache__/
 *.pyc
 
 # Data and large stuff
-data/
+/data/
 datasets/
 logs/
 out/
