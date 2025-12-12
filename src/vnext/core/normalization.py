@@ -28,6 +28,17 @@ class ChannelNormStats:
         std = torch.tensor(d["std"], dtype=torch.float32)
         return cls(mean=mean, std=std)
 
+    def to(self, device: torch.device | str) -> "ChannelNormStats":
+        """Return a copy of these stats on the requested device.
+
+        Normalization stats are typically stored/loaded on CPU. This helper
+        allows moving them to the same device as the model or inputs when
+        desired, without mutating the original instance.
+        """
+
+        dev = torch.device(device)
+        return ChannelNormStats(mean=self.mean.to(dev), std=self.std.to(dev))
+
     def normalize(self, x: torch.Tensor) -> torch.Tensor:
         """Normalize a tensor x along its last dimension.
 
@@ -36,4 +47,8 @@ class ChannelNormStats:
         x : torch.Tensor
             Tensor with shape (..., C).
         """
-        return (x - self.mean) / (self.std.clamp(min=1e-6))
+        # Ensure normalization stats live on the same device as the input.
+        # mean/std are often created/loaded on CPU, while x may be on CUDA.
+        mean = self.mean.to(x.device)
+        std = self.std.to(x.device)
+        return (x - mean) / std.clamp(min=1e-6)
