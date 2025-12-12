@@ -1,0 +1,7 @@
+trial_id,imu_path,grf_path
+gt_small_022,data/vnext_gt_real/imu_gt_22.csv,data/vnext_gt_real/grf_gt_22.csv
+gt_small_023,data/vnext_gt_real/imu_gt_23.csv,data/vnext_gt_real/grf_gt_23.csv
+gt_small_024,data/vnext_gt_real/imu_gt_24.csv,data/vnext_gt_real/grf_gt_24.csv
+gt_small_025,data/vnext_gt_real/imu_gt_25.csv,data/vnext_gt_real/grf_gt_25.csv
+gt_small_026,data/vnext_gt_real/imu_gt_26.csv,data/vnext_gt_real/grf_gt_26.csv
+gt_small_027,data/vnext_gt_real/imu_gt_27.csv,data/vnext_gt_real/grf_gt_27.csv
