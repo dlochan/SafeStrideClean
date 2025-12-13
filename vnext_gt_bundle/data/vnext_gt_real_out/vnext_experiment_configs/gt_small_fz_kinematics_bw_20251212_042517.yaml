@@ -1,0 +1,20 @@
+paths:
+  data_root: data/vnext_gt_real
+  out_root: data/vnext_gt_real_out
+model:
+  type: fz
+  per_sensor_hidden: 32
+  fusion_hidden: 64
+features:
+  enable_kinematics: true
+data:
+  train_manifest: manifests/vnext_train_real.csv
+  val_manifest: manifests/vnext_val_real.csv
+training:
+  batch_size: 8
+  num_workers: 0
+  window_size: 256
+  window_stride: 128
+  epochs: 5
+  lr: 1e-3
+  require_grf: true

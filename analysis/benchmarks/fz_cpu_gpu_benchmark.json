@@ -1,0 +1,22 @@
+{
+  "config": "vast_bundle_fz_bw\\vnext_example.vast.yaml",
+  "cpu": {
+    "device": "cpu",
+    "eval_metrics_path": "data\\vnext_gt_real_out\\vnext_fz\\20251213-144631_6fa2a38c\\eval\\eval_metrics.json",
+    "eval_wall_s": 11.773666799999774,
+    "pred_npz_path": "data\\vnext_gt_real_out\\vnext_fz\\20251213-144631_6fa2a38c\\eval\\preds\\fz_windows_pred_truth_bench_cpu.npz",
+    "run_dir": "data\\vnext_gt_real_out\\vnext_fz\\20251213-144631_6fa2a38c",
+    "status": "OK",
+    "train_wall_s": 49.44926499997382,
+    "val_rmse_mean": 0.97464746932473
+  },
+  "effective_config": "analysis\\benchmarks\\effective_configs\\vnext_example.vast__epochs1.yaml",
+  "epochs": 1,
+  "gpu": {
+    "device": "cuda",
+    "output": "\n2025-12-13 14:47:32,986 [INFO] train_vnext: Pattern A: train_manifest=vast_bundle_fz_bw\\data_root\\manifests\\train_manifest.bundled.csv, val_manifest=vast_bundle_fz_bw\\data_root\\manifests\\val_manifest.bundled.csv\n2025-12-13 14:47:32,993 [INFO] vnext.data.datasets: DualIMUTrialDataset: grf_axes=fz, target_grf_column_config=Fz_BW, chosen_grf_column=Fz_BW, units=BW\n2025-12-13 14:47:33,333 [INFO] vnext.data.datasets: DualIMUTrialDataset: grf_axes=fz, target_grf_column_config=Fz_BW, chosen_grf_column=Fz_BW, units=BW\nTraceback (most recent call last):\n  File \"C:\\Users\\locha\\Documents\\safestride_clean\\scripts\\train_vnext.py\", line 800, in <module>\n    main()\n    ~~~~^^\n  File \"C:\\Users\\locha\\Documents\\safestride_clean\\scripts\\train_vnext.py\", line 260, in main\n    ).to(device)\n      ~~^^^^^^^^\n  File \"C:\\Users\\locha\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\torch\\nn\\modules\\module.py\", line 1371, in to\n    return self._apply(convert)\n           ~~~~~~~~~~~^^^^^^^^^\n  File \"C:\\Users\\locha\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\torch\\nn\\modules\\module.py\", line 930, in _apply\n    module._apply(fn)\n    ~~~~~~~~~~~~~^^^^\n  File \"C:\\Users\\locha\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\torch\\nn\\modules\\module.py\", line 930, in _apply\n    module._apply(fn)\n    ~~~~~~~~~~~~~^^^^\n  File \"C:\\Users\\locha\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\torch\\nn\\modules\\module.py\", line 930, in _apply\n    module._apply(fn)\n    ~~~~~~~~~~~~~^^^^\n  File \"C:\\Users\\locha\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\torch\\nn\\modules\\module.py\", line 957, in _apply\n    param_applied = fn(param)\n  File \"C:\\Users\\locha\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\torch\\nn\\modules\\module.py\", line 1357, in convert\n    return t.to(\n           ~~~~^\n        device,\n        ^^^^^^^\n        dtype if t.is_floating_point() or t.is_complex() else None,\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        non_blocking,\n        ^^^^^^^^^^^^^\n    )\n    ^\n  File \"C:\\Users\\locha\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\torch\\cuda\\__init__.py\", line 403, in _lazy_init\n    raise AssertionError(\"Torch not compiled with CUDA enabled\")\nAssertionError: Torch not compiled with CUDA enabled\n",
+    "stage": "train",
+    "status": "FAIL"
+  },
+  "seed": 0
+}

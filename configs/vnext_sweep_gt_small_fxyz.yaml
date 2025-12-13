@@ -16,7 +16,7 @@ experiments:
         enable_kinematics: false
       model:
         type: "grf3d"
-        grf_axes: "fxyz"
+        grf_axes: "3d"
       training:
         batch_size: 32
         num_workers: 0
@@ -37,7 +37,7 @@ experiments:
       # Kinematics are enabled via the base config's features block
       model:
         type: "grf3d"
-        grf_axes: "fxyz"
+        grf_axes: "3d"
       training:
         batch_size: 32
         num_workers: 0

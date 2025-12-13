@@ -1,0 +1,47 @@
+base_config: "configs/vnext_example.yaml"
+
+experiments:
+  - name: gt_small_fz_raw_n
+    tags: ["gt_full", "fz", "raw", "N", "deep"]
+    base_overrides:
+      model:
+        type: fz
+        target_grf_column: Fz_N
+        use_kinematics: false
+      training:
+        batch_size: 8
+        window_size: 256
+        window_stride: 128
+        epochs: 40
+        lr: 1.0e-3
+        require_grf: true
+
+  - name: gt_small_fz_raw_bw
+    tags: ["gt_full", "fz", "raw", "bw", "deep"]
+    base_overrides:
+      model:
+        type: fz
+        target_grf_column: Fz_BW
+        use_kinematics: false
+      training:
+        batch_size: 8
+        window_size: 256
+        window_stride: 128
+        epochs: 40
+        lr: 1.0e-3
+        require_grf: true
+
+  - name: gt_small_fz_kinematics_bw
+    tags: ["gt_full", "fz", "kinematics", "bw", "deep"]
+    base_overrides:
+      model:
+        type: fz
+        target_grf_column: Fz_BW
+        use_kinematics: true
+      training:
+        batch_size: 8
+        window_size: 256
+        window_stride: 128
+        epochs: 40
+        lr: 1.0e-3
+        require_grf: true

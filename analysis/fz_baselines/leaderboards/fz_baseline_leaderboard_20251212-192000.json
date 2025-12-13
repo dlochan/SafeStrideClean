@@ -1,0 +1,44 @@
+[
+  {
+    "label": "small",
+    "config": "analysis\\benchmarks\\effective_configs\\vnext_example__epochs1.yaml",
+    "effective_config": "analysis\\fz_baselines\\small\\20251212-192000\\effective_config.yaml",
+    "device": "cpu",
+    "run_dir": "data\\vnext_gt_real_out\\vnext_fz\\20251212-192009_adec0d0e",
+    "train_wall_s": 54.75777839998773,
+    "eval_wall_s": 15.97176459999173,
+    "checkpoint": "best",
+    "pred_npz": "analysis\\fz_baselines\\small\\20251212-192000\\fz_windows_pred_truth_leaderboard_small_20251212-192000.npz",
+    "rmse_mean": 751.1490333388517,
+    "mae_mean": 557.9399667181178,
+    "nrmse_mean": 1.1791662190904562
+  },
+  {
+    "label": "deep",
+    "config": "analysis\\benchmarks\\effective_configs\\vnext_example__epochs1.yaml",
+    "effective_config": "analysis\\fz_baselines\\deep\\20251212-192000\\effective_config.yaml",
+    "device": "cpu",
+    "run_dir": "data\\vnext_gt_real_out\\vnext_fz\\20251212-192120_38d148f0",
+    "train_wall_s": 52.49761419999413,
+    "eval_wall_s": 14.929893399996217,
+    "checkpoint": "best",
+    "pred_npz": "analysis\\fz_baselines\\deep\\20251212-192000\\fz_windows_pred_truth_leaderboard_deep_20251212-192000.npz",
+    "rmse_mean": 751.1490333388517,
+    "mae_mean": 557.9399667181178,
+    "nrmse_mean": 1.1791662190904562
+  },
+  {
+    "label": "long",
+    "config": "analysis\\benchmarks\\effective_configs\\vnext_example__epochs1.yaml",
+    "effective_config": "analysis\\fz_baselines\\long\\20251212-192000\\effective_config.yaml",
+    "device": "cpu",
+    "run_dir": "data\\vnext_gt_real_out\\vnext_fz\\20251212-192227_3ee6b9f8",
+    "train_wall_s": 50.49159920000238,
+    "eval_wall_s": 15.072038400001475,
+    "checkpoint": "best",
+    "pred_npz": "analysis\\fz_baselines\\long\\20251212-192000\\fz_windows_pred_truth_leaderboard_long_20251212-192000.npz",
+    "rmse_mean": 751.1490333388517,
+    "mae_mean": 557.9399667181178,
+    "nrmse_mean": 1.1791662190904562
+  }
+]

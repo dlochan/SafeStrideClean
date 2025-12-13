@@ -1,0 +1,42 @@
+{
+  "model_type": "fz",
+  "grf_axes": "fz",
+  "epochs": 1,
+  "history": {
+    "train": [
+      {
+        "epoch": 1,
+        "split": "train",
+        "metrics": {
+          "mse_per_axis": {
+            "Fz": 0.22181112298815212
+          },
+          "rmse_per_axis": {
+            "Fz": 0.4132430991366114
+          },
+          "mse_mean": 0.22181112298815212,
+          "rmse_mean": 0.4132430991366114
+        }
+      }
+    ],
+    "val": [
+      {
+        "epoch": 1,
+        "split": "val",
+        "metrics": {
+          "mse_per_axis": {
+            "Fz": 0.21839775768439135
+          },
+          "rmse_per_axis": {
+            "Fz": 0.40685425863926994
+          },
+          "mse_mean": 0.21839775768439135,
+          "rmse_mean": 0.40685425863926994
+        }
+      }
+    ]
+  },
+  "best_epoch": 1,
+  "best_val_rmse_mean": 0.40685425863926994,
+  "best_checkpoint": "model_best.pt"
+}

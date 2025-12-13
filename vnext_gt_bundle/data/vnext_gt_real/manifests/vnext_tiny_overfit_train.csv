@@ -1,0 +1,3 @@
+trial_id,imu_path,grf_path
+gt_small_001,data/vnext_gt_real/imu_gt_1.csv,data/vnext_gt_real/grf_gt_1.csv
+gt_small_002,data/vnext_gt_real/imu_gt_2.csv,data/vnext_gt_real/grf_gt_2.csv

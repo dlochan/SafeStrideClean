@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional, List, Tuple
 
+import logging
+
 import numpy as np
 import pandas as pd
 import torch
@@ -44,8 +46,14 @@ class DualIMUTrialDataset(Dataset):
         grf_axes: str = "fz",
         target_grf_column: str | None = None,
     ) -> None:
+        logger = logging.getLogger(__name__)
+        grf_axes = str(grf_axes).lower()
+        if grf_axes == "all":
+            grf_axes = "3d"
         if grf_axes not in {"fz", "3d"}:
-            raise ValueError(f"Unsupported grf_axes '{grf_axes}', expected 'fz' or '3d'")
+            raise ValueError(
+                f"Unsupported grf_axes '{grf_axes}', expected 'fz' or '3d' (alias: 'all' -> '3d')"
+            )
 
         if grf_axes != "fz" and target_grf_column is not None:
             raise ValueError(
@@ -78,6 +86,43 @@ class DualIMUTrialDataset(Dataset):
             else:
                 grf_path = None
             self.records.append(TrialRecord(trial_id=trial_id, imu_path=imu_path, grf_path=grf_path))
+
+        chosen_col: str | None = None
+        chosen_units = "unknown"
+        if self.grf_axes == "fz":
+            try:
+                import csv
+
+                sample_grf_path = next(
+                    (r.grf_path for r in self.records if r.grf_path is not None and r.grf_path.exists()),
+                    None,
+                )
+                if sample_grf_path is not None:
+                    with sample_grf_path.open("r", encoding="utf-8") as f:
+                        header = next(csv.reader(f))
+
+                    if self.target_grf_column is not None and self.target_grf_column in header:
+                        chosen_col = self.target_grf_column
+                    else:
+                        chosen_col = next((c for c in ("Fz_N", "Fz_BW", "Fz_%BW") if c in header), None)
+
+                    if chosen_col is not None:
+                        if chosen_col.endswith("_N"):
+                            chosen_units = "N"
+                        elif chosen_col.endswith("_BW"):
+                            chosen_units = "BW"
+                        elif chosen_col.endswith("_%BW"):
+                            chosen_units = "%BW"
+            except Exception:
+                pass
+
+        logger.info(
+            "DualIMUTrialDataset: grf_axes=%s, target_grf_column_config=%s, chosen_grf_column=%s, units=%s",
+            self.grf_axes,
+            self.target_grf_column,
+            chosen_col,
+            chosen_units,
+        )
 
     def __len__(self) -> int:  # type: ignore[override]
         return len(self.records)

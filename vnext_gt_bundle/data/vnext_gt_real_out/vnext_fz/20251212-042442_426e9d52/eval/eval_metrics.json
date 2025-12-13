@@ -1,0 +1,16 @@
+{
+  "model_type": "fz",
+  "grf_axes": "fz",
+  "manifest": "data/vnext_gt_real/manifests/vnext_val_real.csv",
+  "checkpoint": "model_best.pt",
+  "metrics": {
+    "mse_per_axis": {
+      "Fz": 117408.50560461957
+    },
+    "rmse_per_axis": {
+      "Fz": 327.0496058571629
+    },
+    "mse_mean": 117408.50560461957,
+    "rmse_mean": 327.0496058571629
+  }
+}

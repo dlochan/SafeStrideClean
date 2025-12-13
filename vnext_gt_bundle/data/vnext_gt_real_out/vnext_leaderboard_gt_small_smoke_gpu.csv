@@ -1,0 +1,4 @@
+name,tags,run_dir,model_type,grf_axes,enable_kinematics,window_size,window_stride,batch_size,epochs,lr,best_epoch,best_val_rmse_mean,eval_rmse_mean,eval_rmse_Fx,eval_rmse_Fy,eval_rmse_Fz
+gt_small_fz_kinematics_bw,gt_small;fz;kinematics;cpu;bw,data/vnext_gt_real_out/vnext_fz/20251212-021755_f97e402f,fz,fz,True,64,32,2,1,1e-3,1,0.40028253870526953,0.40028253870526953,,,0.40028253870526953
+gt_small_fz_raw_bw,gt_small;fz;raw;cpu;bw,data/vnext_gt_real_out/vnext_fz/20251212-021704_fd0c416f,fz,fz,False,64,32,2,1,1e-3,1,0.40685425863926994,0.40685425863926994,,,0.40685425863926994
+gt_small_fz_raw_n,gt_small;fz;raw;cpu;N,data/vnext_gt_real_out/vnext_fz/20251212-021612_4fa1d73c,fz,fz,False,64,32,2,1,1e-3,1,325.1904275670949,325.1904275670949,,,325.1904275670949

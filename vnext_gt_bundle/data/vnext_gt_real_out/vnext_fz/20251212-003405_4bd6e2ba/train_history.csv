@@ -1,0 +1,2 @@
+epoch,train_loss,train_rmse_mean,train_rmse_Fx,train_rmse_Fy,train_rmse_Fz,val_rmse_mean,val_rmse_Fx,val_rmse_Fy,val_rmse_Fz
+1,0.2106631897982452,0.40071547805813706,,,0.40071547805813706,0.40722867909610855,,,0.40722867909610855

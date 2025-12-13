@@ -1,0 +1,25 @@
+﻿ M configs/vnext_sweep_gt_small_fxyz.yaml
+ M scripts/check_vnext_setup.py
+ M scripts/eval_vnext.py
+ M scripts/run_vnext_experiments.py
+ M scripts/test_normalization_cuda.py
+ M scripts/train_vnext.py
+ M src/vnext/data/datasets.py
+?? README_GPU.md
+?? analysis/
+?? configs/vnext_sweep_gt_small_3d.yaml
+?? configs/vnext_sweep_gt_small_fz.yaml
+?? diff_analyze_fz_outputs.txt
+?? diff_eval_vnext.txt
+?? diff_run_vnext_experiments.txt
+?? diff_train_vnext.txt
+?? git_status_porcelain.txt
+?? pyproject.toml
+?? pytest.ini
+?? scripts/analyze_fz_outputs.py
+?? scripts/import_smoke_test.py
+?? scripts/validate_config.py
+?? src/safestride.egg-info/
+?? src/vnext/core/validation.py
+?? tests/
+?? vnext_gt_bundle/

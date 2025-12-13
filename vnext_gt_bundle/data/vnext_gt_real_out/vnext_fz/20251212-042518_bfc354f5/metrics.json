@@ -1,0 +1,154 @@
+{
+  "model_type": "fz",
+  "grf_axes": "fz",
+  "epochs": 5,
+  "history": {
+    "train": [
+      {
+        "epoch": 1,
+        "split": "train",
+        "metrics": {
+          "mse_per_axis": {
+            "Fz": 489401.76503537735
+          },
+          "rmse_per_axis": {
+            "Fz": 693.7981398126359
+          },
+          "mse_mean": 489401.76503537735,
+          "rmse_mean": 693.7981398126359
+        }
+      },
+      {
+        "epoch": 2,
+        "split": "train",
+        "metrics": {
+          "mse_per_axis": {
+            "Fz": 329389.3080778302
+          },
+          "rmse_per_axis": {
+            "Fz": 565.5081392382543
+          },
+          "mse_mean": 329389.3080778302,
+          "rmse_mean": 565.5081392382543
+        }
+      },
+      {
+        "epoch": 3,
+        "split": "train",
+        "metrics": {
+          "mse_per_axis": {
+            "Fz": 218260.8813384434
+          },
+          "rmse_per_axis": {
+            "Fz": 462.58596873692056
+          },
+          "mse_mean": 218260.8813384434,
+          "rmse_mean": 462.58596873692056
+        }
+      },
+      {
+        "epoch": 4,
+        "split": "train",
+        "metrics": {
+          "mse_per_axis": {
+            "Fz": 200552.73864976416
+          },
+          "rmse_per_axis": {
+            "Fz": 441.10454354904545
+          },
+          "mse_mean": 200552.73864976416,
+          "rmse_mean": 441.10454354904545
+        }
+      },
+      {
+        "epoch": 5,
+        "split": "train",
+        "metrics": {
+          "mse_per_axis": {
+            "Fz": 188576.796432783
+          },
+          "rmse_per_axis": {
+            "Fz": 427.2148861243646
+          },
+          "mse_mean": 188576.796432783,
+          "rmse_mean": 427.2148861243646
+        }
+      }
+    ],
+    "val": [
+      {
+        "epoch": 1,
+        "split": "val",
+        "metrics": {
+          "mse_per_axis": {
+            "Fz": 555188.5407608695
+          },
+          "rmse_per_axis": {
+            "Fz": 718.1957723215028
+          },
+          "mse_mean": 555188.5407608695,
+          "rmse_mean": 718.1957723215028
+        }
+      },
+      {
+        "epoch": 2,
+        "split": "val",
+        "metrics": {
+          "mse_per_axis": {
+            "Fz": 140530.70550271738
+          },
+          "rmse_per_axis": {
+            "Fz": 358.0936665138498
+          },
+          "mse_mean": 140530.70550271738,
+          "rmse_mean": 358.0936665138498
+        }
+      },
+      {
+        "epoch": 3,
+        "split": "val",
+        "metrics": {
+          "mse_per_axis": {
+            "Fz": 129881.90251358696
+          },
+          "rmse_per_axis": {
+            "Fz": 346.947740257634
+          },
+          "mse_mean": 129881.90251358696,
+          "rmse_mean": 346.947740257634
+        }
+      },
+      {
+        "epoch": 4,
+        "split": "val",
+        "metrics": {
+          "mse_per_axis": {
+            "Fz": 121176.37822690218
+          },
+          "rmse_per_axis": {
+            "Fz": 334.35889342433364
+          },
+          "mse_mean": 121176.37822690218,
+          "rmse_mean": 334.35889342433364
+        }
+      },
+      {
+        "epoch": 5,
+        "split": "val",
+        "metrics": {
+          "mse_per_axis": {
+            "Fz": 117375.54161005435
+          },
+          "rmse_per_axis": {
+            "Fz": 328.4758404294034
+          },
+          "mse_mean": 117375.54161005435,
+          "rmse_mean": 328.4758404294034
+        }
+      }
+    ]
+  },
+  "best_epoch": 5,
+  "best_val_rmse_mean": 328.4758404294034,
+  "best_checkpoint": "model_best.pt"
+}

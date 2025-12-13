@@ -1,0 +1,46 @@
+# Canonical GT-small vNext sweep (Fz-only)
+
+base_config: "configs/vnext_example.yaml"
+
+experiments:
+  - name: "gt_small_fz_raw_n"
+    tags: ["gt_small", "fz", "raw", "cpu", "N"]
+    overrides:
+      paths:
+        data_root: "data/vnext_gt_real"
+        out_root: "data/vnext_gt_real_out"
+      features:
+        enable_kinematics: false
+      model:
+        type: "fz"
+        grf_axes: "fz"
+      data:
+        train_manifest: "manifests/vnext_train_real.csv"
+        val_manifest:   "manifests/vnext_val_real.csv"
+      training:
+        batch_size: 2
+        num_workers: 0
+        window_size: 64
+        window_stride: 32
+        epochs: 1
+        lr: 1e-3
+
+  - name: "gt_small_fz_kinematics_n"
+    tags: ["gt_small", "fz", "kinematics", "cpu", "N"]
+    overrides:
+      paths:
+        data_root: "data/vnext_gt_real"
+        out_root: "data/vnext_gt_real_out"
+      model:
+        type: "fz"
+        grf_axes: "fz"
+      data:
+        train_manifest: "manifests/vnext_train_real.csv"
+        val_manifest:   "manifests/vnext_val_real.csv"
+      training:
+        batch_size: 2
+        num_workers: 0
+        window_size: 64
+        window_stride: 32
+        epochs: 1
+        lr: 1e-3

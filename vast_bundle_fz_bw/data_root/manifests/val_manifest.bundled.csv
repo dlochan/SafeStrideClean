@@ -1,0 +1,7 @@
+trial_id,imu_path,grf_path
+gt_small_016,vast_bundle_fz_bw/data_root/imu/imu_gt_16.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_16.csv
+gt_small_017,vast_bundle_fz_bw/data_root/imu/imu_gt_17.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_17.csv
+gt_small_018,vast_bundle_fz_bw/data_root/imu/imu_gt_18.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_18.csv
+gt_small_019,vast_bundle_fz_bw/data_root/imu/imu_gt_19.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_19.csv
+gt_small_020,vast_bundle_fz_bw/data_root/imu/imu_gt_20.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_20.csv
+gt_small_021,vast_bundle_fz_bw/data_root/imu/imu_gt_21.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_21.csv

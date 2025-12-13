@@ -1,0 +1,14 @@
+{
+  "checkpoint": "best",
+  "config": "analysis\\benchmarks\\effective_configs\\vnext_example__epochs1.yaml",
+  "device": "cpu",
+  "effective_config": "analysis\\fz_baselines\\small\\20251212-192000\\effective_config.yaml",
+  "eval_wall_s": 15.97176459999173,
+  "label": "small",
+  "mae_mean": 557.9399667181178,
+  "nrmse_mean": 1.1791662190904562,
+  "pred_npz": "analysis\\fz_baselines\\small\\20251212-192000\\fz_windows_pred_truth_leaderboard_small_20251212-192000.npz",
+  "rmse_mean": 751.1490333388517,
+  "run_dir": "data\\vnext_gt_real_out\\vnext_fz\\20251212-192009_adec0d0e",
+  "train_wall_s": 54.75777839998773
+}

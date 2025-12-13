@@ -1,0 +1,19 @@
+fz_acceptance_progress:
+  # If you do not set thresholds, the gate will remain BLOCKED by policy.
+  # Research-grounded milestones (subject-independent eval):
+  # - Progress gate: RMSE_BW (or nRMSE_BW) <= 0.15 and Pearson r >= 0.85
+  nrmse_bw_max: 0.15
+  pearson_r_mean_min: 0.85
+
+fz_acceptance_literature:
+  # Literature gate: RMSE_BW (or nRMSE_BW) <= 0.10 and Pearson r >= 0.90
+  nrmse_bw_max: 0.10
+  pearson_r_mean_min: 0.90
+
+# Legacy single-level gate (optional). If set, treated as the literature gate.
+fz_acceptance:
+  # If you do not set thresholds, the gate will remain BLOCKED by policy.
+  # Uncomment and tune as needed:
+  # nrmse_median_max: 0.25
+  # nrmse_bw_max: 0.10
+  # pearson_r_mean_min: 0.75

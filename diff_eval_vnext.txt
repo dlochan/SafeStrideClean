@@ -1,0 +1,202 @@
+﻿diff --git a/scripts/eval_vnext.py b/scripts/eval_vnext.py
+index fd9f00b..02ff2c7 100644
+--- a/scripts/eval_vnext.py
++++ b/scripts/eval_vnext.py
+@@ -12,11 +12,16 @@ import numpy as np
+ import torch
+ from torch.utils.data import DataLoader
+ 
+-repo_root = Path(__file__).resolve().parent.parent
+-sys.path.insert(0, str(repo_root))
+-sys.path.insert(0, str(repo_root / "src"))
++try:
++    import vnext  # noqa: F401
++except ModuleNotFoundError as e:
++    raise SystemExit(
++        "Could not import 'vnext'. Install the repo in editable mode from the repo root: "
++        "`python -m pip install -e .`"
++    ) from e
+ 
+ from vnext.core.config import load_config
++from vnext.core.validation import validate_config, normalize_grf_axes
+ from vnext.core.paths import SafeStridePaths
+ from vnext.core.logging_utils import get_logger
+ from vnext.core.normalization import ChannelNormStats
+@@ -57,6 +62,14 @@ def main() -> None:
+         default="best",
+         help="Which checkpoint to evaluate: 'best' (default) or 'last'",
+     )
++    ap.add_argument(
++        "--save-preds",
++        action="store_true",
++        help=(
++            "If set, save per-window FZ predictions and ground truth to "
++            "<run_dir>/eval/preds/fz_windows_pred_truth.npz"
++        ),
++    )
+     ap.add_argument("--device", default="cpu", help="Device string for torch (e.g. cpu or cuda)")
+     ap.add_argument("--seed", type=int, default=None, help="Optional random seed for reproducibility")
+     args = ap.parse_args()
+@@ -66,7 +79,7 @@ def main() -> None:
+     if args.seed is not None:
+         set_seed(args.seed)
+ 
+-    cfg = load_config(args.config)
++    cfg = validate_config(load_config(args.config))
+     cfg_paths: Dict[str, Any] = cfg.get("paths", {}) or {}
+     paths = SafeStridePaths.from_env_or_defaults(cfg_paths)
+ 
+@@ -99,23 +112,14 @@ def main() -> None:
+     window_stride = int(train_cfg.get("window_stride", 128))
+     require_grf = bool(train_cfg.get("require_grf", True))
+ 
+-    # Decide GRF axes. If model.grf_axes is provided, honor it (with
+-    # "fxyz" treated as an alias for 3D); otherwise derive from model.type.
+-    raw_grf_axes = model_cfg.get("grf_axes")
+-    if raw_grf_axes is not None:
+-        grf_axes = str(raw_grf_axes).lower()
+-        if grf_axes == "fxyz":
+-            grf_axes = "3d"
+-    else:
+-        if model_type == "fz":
+-            grf_axes = "fz"
+-        elif model_type == "grf3d":
+-            grf_axes = "3d"
+-        else:
+-            raise SystemExit(f"Unknown model.type '{model_type}'")
++    grf_axes = normalize_grf_axes(model_cfg.get("grf_axes"), model_type=model_type)
+ 
+-    if grf_axes not in {"fz", "3d"}:
+-        raise SystemExit(f"Unsupported grf_axes '{grf_axes}', expected 'fz' or '3d'")
++    gate_path = Path("analysis") / "FZ_TO_3D_GATE.md"
++    if grf_axes == "3d" and not gate_path.exists():
++        logger.warning(
++            "3D GRF requested (grf_axes='3d') but gate file is missing: analysis/FZ_TO_3D_GATE.md. "
++            "Per repo policy, do NOT proceed to 3D until the FZ gate is generated and explicitly authorizes it."
++        )
+ 
+     # Resolve evaluation manifest.
+     # Default behavior evaluates on data.val_manifest (or data.train_manifest as fallback).
+@@ -230,7 +234,13 @@ def main() -> None:
+     # Eval loop: accumulate metrics and per-window summaries
+     n_batches = 0
+     metrics_accum: Dict[str, float] = {}
++    metrics_count = 0
++
+     window_rows: List[Dict[str, Any]] = []
++    pred_trial_ids: List[str] = []
++    pred_start_idxs: List[int] = []
++    pred_y_true: List[np.ndarray] = []
++    pred_y_pred: List[np.ndarray] = []
+ 
+     with torch.no_grad():
+         for batch in eval_loader:
+@@ -246,6 +256,12 @@ def main() -> None:
+             imu = norm_stats.normalize(imu)
+ 
+             y_hat = model(imu)  # (B, T, D)
++            if y_hat.shape != grf_v.shape:
++                raise RuntimeError(
++                    "Model output shape does not match GRF target shape: "
++                    f"y_hat{tuple(y_hat.shape)} vs grf_v{tuple(grf_v.shape)}. "
++                    f"model.type='{model_type}', grf_axes='{grf_axes}'."
++                )
+ 
+             batch_metrics = compute_grf_metrics(y_hat, grf_v, axes=grf_axes)
+ 
+@@ -272,25 +288,31 @@ def main() -> None:
+                 trial_id = str(trial_ids[i])
+                 start_idx = int(start_idxs[i])
+ 
+-                row: Dict[str, Any] = {
+-                    "trial_id": trial_id,
+-                    "start_idx": start_idx,
+-                }
++                window_rows.append(
++                    {
++                        "trial_id": trial_id,
++                        "start_idx": start_idx,
++                    }
++                )
++
++                if args.save_preds and grf_axes == "fz":
++                    pred_trial_ids.append(trial_id)
++                    pred_start_idxs.append(start_idx)
++                    pred_y_true.append(grf_v[i, :, 0].detach().cpu().numpy().astype(np.float32))
++                    pred_y_pred.append(y_hat[i, :, 0].detach().cpu().numpy().astype(np.float32))
+ 
+                 if grf_axes == "fz":
+                     # Single-axis Fz
+-                    row["Fz_mean"] = float(y_mean[i, 0].item())
+-                    row["Fz_peak"] = float(y_peak[i, 0].item())
++                    window_rows[-1]["Fz_mean"] = float(y_mean[i, 0].item())
++                    window_rows[-1]["Fz_peak"] = float(y_peak[i, 0].item())
+                 else:
+                     # 3D GRF: Fx, Fy, Fz
+-                    row["Fx_mean"] = float(y_mean[i, 0].item())
+-                    row["Fy_mean"] = float(y_mean[i, 1].item())
+-                    row["Fz_mean"] = float(y_mean[i, 2].item())
+-                    row["Fx_peak"] = float(y_peak[i, 0].item())
+-                    row["Fy_peak"] = float(y_peak[i, 1].item())
+-                    row["Fz_peak"] = float(y_peak[i, 2].item())
+-
+-                window_rows.append(row)
++                    window_rows[-1]["Fx_mean"] = float(y_mean[i, 0].item())
++                    window_rows[-1]["Fy_mean"] = float(y_mean[i, 1].item())
++                    window_rows[-1]["Fz_mean"] = float(y_mean[i, 2].item())
++                    window_rows[-1]["Fx_peak"] = float(y_peak[i, 0].item())
++                    window_rows[-1]["Fy_peak"] = float(y_peak[i, 1].item())
++                    window_rows[-1]["Fz_peak"] = float(y_peak[i, 2].item())
+ 
+             n_batches += 1
+ 
+@@ -321,6 +343,9 @@ def main() -> None:
+     # Prepare eval output directory under run_dir
+     eval_dir = run_dir / "eval"
+     eval_dir.mkdir(parents=True, exist_ok=True)
++    preds_dir = eval_dir / "preds"
++    if args.save_preds:
++        preds_dir.mkdir(parents=True, exist_ok=True)
+ 
+     # Write metrics JSON. We always write both a suffixed file
+     # (eval_metrics_val.json or eval_metrics_test.json) and a legacy
+@@ -356,12 +381,37 @@ def main() -> None:
+                 for row in window_rows:
+                     writer.writerow(row)
+ 
++    if args.save_preds:
++        if grf_axes != "fz":
++            logger.warning(
++                "--save-preds currently only exports fz windows; skipping for grf_axes!=fz"
++            )
++        else:
++            if not pred_y_true:
++                raise SystemExit(
++                    "--save-preds was set but no FZ windows were collected; cannot write NPZ."
++                )
++            out_npz = preds_dir / "fz_windows_pred_truth.npz"
++            np.savez_compressed(
++                out_npz,
++                trial_id=np.array(pred_trial_ids, dtype=object),
++                start_idx=np.array(pred_start_idxs, dtype=np.int64),
++                y_true=np.stack(pred_y_true, axis=0),
++                y_pred=np.stack(pred_y_pred, axis=0),
++                window_len=int(pred_y_true[0].shape[0]),
++            )
++            logger.info(f"Wrote prediction export: {out_npz}")
++
+     logger.info(
+         f"Evaluating run_dir={run_dir} on manifest={eval_manifest_path} "
+         f"using checkpoint={ckpt_name}, model_type={model_type}, grf_axes={grf_axes}"
+     )
+-    logger.info(f"Eval metrics written to: {eval_metrics_path} and {legacy_eval_metrics_path}")
+-    logger.info(f"Eval window summaries written to: {eval_windows_path} and {legacy_eval_windows_path}")
++    logger.info(
++        f"Eval metrics written to: {eval_metrics_path} and {legacy_eval_metrics_path}"
++    )
++    logger.info(
++        f"Eval window summaries written to: {eval_windows_path} and {legacy_eval_windows_path}"
++    )
+     logger.info(
+         "Final eval RMSE_mean={:.4f}, per-axis={}".format(
+             eval_metrics.rmse_mean, eval_metrics.rmse_per_axis

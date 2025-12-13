@@ -1,0 +1,12 @@
+
+2025-12-12 19:23:17,265 [INFO] eval_vnext: Evaluating run directory: data\vnext_gt_real_out\vnext_fz\20251212-192227_3ee6b9f8
+2025-12-12 19:23:17,266 [INFO] eval_vnext: Using data.val_manifest for evaluation: data\vnext_gt_real\manifests\vnext_val_real.csv
+2025-12-12 19:23:17,266 [INFO] eval_vnext: Eval manifest: data\vnext_gt_real\manifests\vnext_val_real.csv
+2025-12-12 19:23:17,558 [INFO] eval_vnext: Using model.type='fz', grf_axes='fz'
+2025-12-12 19:23:17,558 [INFO] eval_vnext: Model in_channels=20, enable_kinematics=True
+2025-12-12 19:23:17,626 [INFO] eval_vnext: Loaded checkpoint: data\vnext_gt_real_out\vnext_fz\20251212-192227_3ee6b9f8\model_best.pt
+2025-12-12 19:23:24,190 [INFO] eval_vnext: Wrote prediction export: data\vnext_gt_real_out\vnext_fz\20251212-192227_3ee6b9f8\eval\preds\fz_windows_pred_truth_leaderboard_long_20251212-192000.npz
+2025-12-12 19:23:24,190 [INFO] eval_vnext: Evaluating run_dir=data\vnext_gt_real_out\vnext_fz\20251212-192227_3ee6b9f8 on manifest=data\vnext_gt_real\manifests\vnext_val_real.csv using checkpoint=model_best.pt, model_type=fz, grf_axes=fz
+2025-12-12 19:23:24,191 [INFO] eval_vnext: Eval metrics written to: data\vnext_gt_real_out\vnext_fz\20251212-192227_3ee6b9f8\eval\eval_metrics_val.json and data\vnext_gt_real_out\vnext_fz\20251212-192227_3ee6b9f8\eval\eval_metrics.json
+2025-12-12 19:23:24,191 [INFO] eval_vnext: Eval window summaries written to: data\vnext_gt_real_out\vnext_fz\20251212-192227_3ee6b9f8\eval\eval_windows_val.csv and data\vnext_gt_real_out\vnext_fz\20251212-192227_3ee6b9f8\eval\eval_windows.csv
+2025-12-12 19:23:24,191 [INFO] eval_vnext: Final eval RMSE_mean=720.9147, per-axis={'Fz': 720.9146933057491}

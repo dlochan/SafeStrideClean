@@ -1,0 +1,18 @@
+{
+  "created": "2025-12-13 14:46:15",
+  "source_config": "configs\\vnext_example.yaml",
+  "source_data_root": "C:\\Users\\locha\\Documents\\safestride_clean\\data\\vnext_gt_real",
+  "source_manifests": [
+    "C:\\Users\\locha\\Documents\\safestride_clean\\data\\vnext_gt_real\\manifests\\vnext_train_real.csv",
+    "C:\\Users\\locha\\Documents\\safestride_clean\\data\\vnext_gt_real\\manifests\\vnext_val_real.csv"
+  ],
+  "bundled_data_root": "vast_bundle_fz_bw\\data_root",
+  "bundled_manifests": {
+    "train": "manifests/train_manifest.bundled.csv",
+    "val": "manifests/val_manifest.bundled.csv"
+  },
+  "counts": {
+    "imu": 21,
+    "grf": 21
+  }
+}

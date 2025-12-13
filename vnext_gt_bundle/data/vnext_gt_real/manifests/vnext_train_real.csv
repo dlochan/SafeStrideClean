@@ -1,0 +1,16 @@
+trial_id,imu_path,grf_path
+gt_small_001,data/vnext_gt_real/imu_gt_1.csv,data/vnext_gt_real/grf_gt_1.csv
+gt_small_002,data/vnext_gt_real/imu_gt_2.csv,data/vnext_gt_real/grf_gt_2.csv
+gt_small_003,data/vnext_gt_real/imu_gt_3.csv,data/vnext_gt_real/grf_gt_3.csv
+gt_small_004,data/vnext_gt_real/imu_gt_4.csv,data/vnext_gt_real/grf_gt_4.csv
+gt_small_005,data/vnext_gt_real/imu_gt_5.csv,data/vnext_gt_real/grf_gt_5.csv
+gt_small_006,data/vnext_gt_real/imu_gt_6.csv,data/vnext_gt_real/grf_gt_6.csv
+gt_small_007,data/vnext_gt_real/imu_gt_7.csv,data/vnext_gt_real/grf_gt_7.csv
+gt_small_008,data/vnext_gt_real/imu_gt_8.csv,data/vnext_gt_real/grf_gt_8.csv
+gt_small_009,data/vnext_gt_real/imu_gt_9.csv,data/vnext_gt_real/grf_gt_9.csv
+gt_small_010,data/vnext_gt_real/imu_gt_10.csv,data/vnext_gt_real/grf_gt_10.csv
+gt_small_011,data/vnext_gt_real/imu_gt_11.csv,data/vnext_gt_real/grf_gt_11.csv
+gt_small_012,data/vnext_gt_real/imu_gt_12.csv,data/vnext_gt_real/grf_gt_12.csv
+gt_small_013,data/vnext_gt_real/imu_gt_13.csv,data/vnext_gt_real/grf_gt_13.csv
+gt_small_014,data/vnext_gt_real/imu_gt_14.csv,data/vnext_gt_real/grf_gt_14.csv
+gt_small_015,data/vnext_gt_real/imu_gt_15.csv,data/vnext_gt_real/grf_gt_15.csv

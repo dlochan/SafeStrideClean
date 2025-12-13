@@ -1,0 +1,19 @@
+﻿diff --git a/src/vnext/data/datasets.py b/src/vnext/data/datasets.py
+index 6e38c76..5e6a903 100644
+--- a/src/vnext/data/datasets.py
++++ b/src/vnext/data/datasets.py
+@@ -44,8 +44,13 @@ class DualIMUTrialDataset(Dataset):
+         grf_axes: str = "fz",
+         target_grf_column: str | None = None,
+     ) -> None:
++        grf_axes = str(grf_axes).lower()
++        if grf_axes == "all":
++            grf_axes = "3d"
+         if grf_axes not in {"fz", "3d"}:
+-            raise ValueError(f"Unsupported grf_axes '{grf_axes}', expected 'fz' or '3d'")
++            raise ValueError(
++                f"Unsupported grf_axes '{grf_axes}', expected 'fz' or '3d' (alias: 'all' -> '3d')"
++            )
+ 
+         if grf_axes != "fz" and target_grf_column is not None:
+             raise ValueError(

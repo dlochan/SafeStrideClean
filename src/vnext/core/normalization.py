@@ -52,3 +52,34 @@ class ChannelNormStats:
         mean = self.mean.to(x.device)
         std = self.std.to(x.device)
         return (x - mean) / std.clamp(min=1e-6)
+
+
+@dataclass
+class TargetNormStats:
+    kind: str
+    center: torch.Tensor
+    scale: torch.Tensor
+
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            "kind": self.kind,
+            "center": self.center.tolist(),
+            "scale": self.scale.tolist(),
+        }
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, object]) -> "TargetNormStats":
+        kind = str(d.get("kind", "none"))
+        center = torch.tensor(d.get("center", [0.0]), dtype=torch.float32)
+        scale = torch.tensor(d.get("scale", [1.0]), dtype=torch.float32)
+        return cls(kind=kind, center=center, scale=scale)
+
+    def normalize(self, y: torch.Tensor) -> torch.Tensor:
+        c = self.center.to(y.device)
+        s = self.scale.to(y.device)
+        return (y - c) / s.clamp(min=1e-6)
+
+    def denormalize(self, y: torch.Tensor) -> torch.Tensor:
+        c = self.center.to(y.device)
+        s = self.scale.to(y.device)
+        return (y * s) + c

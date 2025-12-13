@@ -1,0 +1,146 @@
+{
+  "bw_denom_newtons": 735.75,
+  "failure_mode_checks": {
+    "constant_predictions": {
+      "details": {
+        "pred_std": 337.3695485497504,
+        "ratio": 0.6444298153320444,
+        "true_std": 523.5163558803924
+      },
+      "implicated": null,
+      "next_step": null,
+      "status": "PASS"
+    },
+    "magnitude_sanity": {
+      "details": {
+        "finite": true,
+        "max_abs_pred": 2779.4501953125,
+        "max_pred_to_truth_scale_ratio": 4.363227046154479,
+        "threshold_ratio": 50.0,
+        "truth_scale_median_abs": 637.01708984375
+      },
+      "implicated": null,
+      "next_step": null,
+      "status": "PASS"
+    },
+    "mode_collapse": {
+      "details": {
+        "std_window_mean_pred": 157.5669437383424,
+        "std_window_mean_true": 193.8119581680539
+      },
+      "implicated": null,
+      "next_step": null,
+      "status": "PASS"
+    },
+    "over_smoothing": {
+      "details": {
+        "ratio": 1.667505045234963,
+        "std_diff_pred": 66.80648146171713,
+        "std_diff_true": 40.06373572058883
+      },
+      "implicated": null,
+      "next_step": null,
+      "status": "PASS"
+    },
+    "temporal_lag": {
+      "details": {
+        "max_lag_checked": 20,
+        "median_abs_lag_samples": 2.0
+      },
+      "implicated": null,
+      "next_step": null,
+      "status": "PASS"
+    }
+  },
+  "nrmse_bw_reason": null,
+  "num_windows": 180,
+  "per_subject": null,
+  "per_trial": {
+    "gt_small_016": {
+      "bias_mean": -46.92591340392828,
+      "mae_mean": 205.1837870573004,
+      "nrmse_mean": 0.5447910751699216,
+      "num_windows": 30,
+      "pearson_r_mean": 0.8556559176695162,
+      "rmse_mean": 236.35218607871198,
+      "stderr_mean": 230.2909738983654,
+      "subject_id": null
+    },
+    "gt_small_017": {
+      "bias_mean": -140.6682912826538,
+      "mae_mean": 408.4678478658199,
+      "nrmse_mean": 0.6153428108501183,
+      "num_windows": 30,
+      "pearson_r_mean": 0.6844313631992633,
+      "rmse_mean": 508.7661718718809,
+      "stderr_mean": 487.0834023609228,
+      "subject_id": null
+    },
+    "gt_small_018": {
+      "bias_mean": 11.73451973721385,
+      "mae_mean": 203.9153644097348,
+      "nrmse_mean": 0.5897837517911186,
+      "num_windows": 30,
+      "pearson_r_mean": 0.8112789643409964,
+      "rmse_mean": 249.83944488131132,
+      "stderr_mean": 247.7070005207141,
+      "subject_id": null
+    },
+    "gt_small_019": {
+      "bias_mean": -99.93488940695921,
+      "mae_mean": 212.29244137903055,
+      "nrmse_mean": 0.5411589326268557,
+      "num_windows": 30,
+      "pearson_r_mean": 0.826534532425313,
+      "rmse_mean": 246.92318424184424,
+      "stderr_mean": 224.73730439695916,
+      "subject_id": null
+    },
+    "gt_small_020": {
+      "bias_mean": -140.15858790228765,
+      "mae_mean": 362.9028349344929,
+      "nrmse_mean": 0.5212536561085056,
+      "num_windows": 30,
+      "pearson_r_mean": 0.7687773808910882,
+      "rmse_mean": 436.58315861072657,
+      "stderr_mean": 412.0578523989435,
+      "subject_id": null
+    },
+    "gt_small_021": {
+      "bias_mean": -79.41578417941928,
+      "mae_mean": 236.09770326688886,
+      "nrmse_mean": 0.570678171353037,
+      "num_windows": 30,
+      "pearson_r_mean": 0.7638036283659976,
+      "rmse_mean": 275.52685995485024,
+      "stderr_mean": 262.02856665174863,
+      "subject_id": null
+    }
+  },
+  "run_dir": "data\\vnext_gt_real_out\\vnext_fz\\20251212-014808_a72332cc",
+  "scale_median_abs_y_true": 637.01708984375,
+  "subject_id_available": false,
+  "target_grf_column_config": null,
+  "target_grf_column_inferred": "Fz_N",
+  "target_units_inferred": "N",
+  "units": "unknown",
+  "window_len": 256,
+  "window_metrics": {
+    "bias_mean": -82.56149107300573,
+    "bias_std": 63.46787242649992,
+    "mae_mean": 271.47666315221124,
+    "mae_std": 84.89713441571436,
+    "nrmse_bw_mean": 0.44263019722263575,
+    "nrmse_bw_num_finite": 180,
+    "nrmse_bw_std": 0.14850361077598073,
+    "nrmse_mean": 0.5638347329832594,
+    "nrmse_std": 0.2157862558034873,
+    "pearson_r_mean": 0.7850802978153625,
+    "pearson_r_num_finite": 180,
+    "pearson_r_std": 0.0678325762554449,
+    "rmse_mean": 325.66516760655423,
+    "rmse_std": 109.26153162842785,
+    "stderr_mean": 310.65085003794223,
+    "stderr_std": 103.18605728563539
+  }
+}

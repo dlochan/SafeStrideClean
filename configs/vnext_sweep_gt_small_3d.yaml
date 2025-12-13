@@ -1,0 +1,46 @@
+# Canonical GT-small vNext sweep (3D GRF: Fx, Fy, Fz)
+
+base_config: "configs/vnext_example.yaml"
+
+experiments:
+  - name: "gt_small_3d_raw_n"
+    tags: ["gt_small", "3d", "raw", "cpu", "N"]
+    overrides:
+      paths:
+        data_root: "data/vnext_gt_real"
+        out_root:  "data/vnext_gt_real_out"
+      data:
+        train_manifest: "manifests/vnext_train_real.csv"
+        val_manifest:   "manifests/vnext_val_real.csv"
+      features:
+        enable_kinematics: false
+      model:
+        type: "grf3d"
+        grf_axes: "3d"
+      training:
+        batch_size: 8
+        num_workers: 0
+        window_size: 128
+        window_stride: 32
+        epochs: 1
+        lr: 1e-3
+
+  - name: "gt_small_all_kinematics_n"
+    tags: ["gt_small", "all", "kinematics", "cpu", "N"]
+    overrides:
+      paths:
+        data_root: "data/vnext_gt_real"
+        out_root:  "data/vnext_gt_real_out"
+      data:
+        train_manifest: "manifests/vnext_train_real.csv"
+        val_manifest:   "manifests/vnext_val_real.csv"
+      model:
+        type: "grf3d"
+        grf_axes: "all"
+      training:
+        batch_size: 8
+        num_workers: 0
+        window_size: 128
+        window_stride: 32
+        epochs: 1
+        lr: 1e-3

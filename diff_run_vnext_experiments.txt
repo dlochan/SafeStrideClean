@@ -1,0 +1,71 @@
+﻿diff --git a/scripts/run_vnext_experiments.py b/scripts/run_vnext_experiments.py
+index 576ae90..65904b2 100644
+--- a/scripts/run_vnext_experiments.py
++++ b/scripts/run_vnext_experiments.py
+@@ -11,11 +11,17 @@ from typing import Any, Dict, List, Optional
+ 
+ import yaml
+ 
+-repo_root = Path(__file__).resolve().parent.parent
+-sys.path.insert(0, str(repo_root))
+-sys.path.insert(0, str(repo_root / "src"))
++try:
++    import vnext  # noqa: F401
++except ModuleNotFoundError as e:
++    raise SystemExit(
++        "Could not import 'vnext'. Install the repo in editable mode from the repo root: "
++        "`python -m pip install -e .`"
++    ) from e
+ 
+ from vnext.core.config import load_config
++from vnext.core.validation import validate_config
++from vnext.core.validation import normalize_grf_axes
+ from vnext.core.paths import SafeStridePaths
+ from vnext.core.logging_utils import get_logger
+ from vnext.experiments.registry import (
+@@ -270,7 +276,7 @@ def main() -> None:
+     logger.info(f"Found {len(suite.experiments)} experiments")
+     
+     # Load base config
+-    base_cfg = load_config(suite.base_config_path)
++    base_cfg = validate_config(load_config(suite.base_config_path))
+     base_paths = SafeStridePaths.from_env_or_defaults(base_cfg.get("paths", {}))
+     
+     # Create directory for effective configs
+@@ -288,7 +294,17 @@ def main() -> None:
+         logger.info(f"Tags: {experiment.tags}")
+         
+         # Create effective config
+-        effective_cfg = deep_merge_dicts(base_cfg, experiment.overrides)
++        effective_cfg = validate_config(deep_merge_dicts(base_cfg, experiment.overrides))
++
++        model_cfg = effective_cfg.get("model", {}) or {}
++        model_type = str(model_cfg.get("type", "fz")).lower()
++        grf_axes = normalize_grf_axes(model_cfg.get("grf_axes"), model_type=model_type)
++        gate_path = Path("analysis") / "FZ_TO_3D_GATE.md"
++        if grf_axes == "3d" and not gate_path.exists():
++            logger.warning(
++                "3D GRF requested (grf_axes='3d') but gate file is missing: analysis/FZ_TO_3D_GATE.md. "
++                "Per repo policy, do NOT proceed to 3D until the FZ gate is generated and explicitly authorizes it."
++            )
+         
+         # Write effective config
+         timestamp = time.strftime("%Y%m%d_%H%M%S")
+@@ -351,7 +367,7 @@ def main() -> None:
+                 "tags": ";".join(experiment.tags) if experiment.tags else "",
+                 "run_dir": f"<would-be-created-for-{experiment.name}>",
+                 "model_type": effective_cfg.get("model", {}).get("type", "fz"),
+-                "grf_axes": "fz" if effective_cfg.get("model", {}).get("type", "fz") == "fz" else "3d",
++                "grf_axes": effective_cfg.get("model", {}).get("grf_axes", "fz"),
+                 "enable_kinematics": bool(effective_cfg.get("features", {}).get("enable_kinematics", False)),
+                 "window_size": effective_cfg.get("training", {}).get("window_size", 256),
+                 "window_stride": effective_cfg.get("training", {}).get("window_stride", 128),
+@@ -375,7 +391,7 @@ def main() -> None:
+             "tags": ";".join(experiment.tags) if experiment.tags else "",
+             "run_dir": str(run_dir),
+             "model_type": effective_cfg.get("model", {}).get("type", "fz"),
+-            "grf_axes": "fz" if effective_cfg.get("model", {}).get("type", "fz") == "fz" else "3d",
++            "grf_axes": effective_cfg.get("model", {}).get("grf_axes", "fz"),
+             "enable_kinematics": bool(effective_cfg.get("features", {}).get("enable_kinematics", False)),
+             "window_size": effective_cfg.get("training", {}).get("window_size", 256),
+             "window_stride": effective_cfg.get("training", {}).get("window_stride", 128),

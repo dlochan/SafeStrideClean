@@ -1,0 +1,16 @@
+trial_id,imu_path,grf_path
+gt_small_001,vast_bundle_fz_bw/data_root/imu/imu_gt_1.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_1.csv
+gt_small_002,vast_bundle_fz_bw/data_root/imu/imu_gt_2.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_2.csv
+gt_small_003,vast_bundle_fz_bw/data_root/imu/imu_gt_3.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_3.csv
+gt_small_004,vast_bundle_fz_bw/data_root/imu/imu_gt_4.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_4.csv
+gt_small_005,vast_bundle_fz_bw/data_root/imu/imu_gt_5.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_5.csv
+gt_small_006,vast_bundle_fz_bw/data_root/imu/imu_gt_6.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_6.csv
+gt_small_007,vast_bundle_fz_bw/data_root/imu/imu_gt_7.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_7.csv
+gt_small_008,vast_bundle_fz_bw/data_root/imu/imu_gt_8.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_8.csv
+gt_small_009,vast_bundle_fz_bw/data_root/imu/imu_gt_9.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_9.csv
+gt_small_010,vast_bundle_fz_bw/data_root/imu/imu_gt_10.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_10.csv
+gt_small_011,vast_bundle_fz_bw/data_root/imu/imu_gt_11.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_11.csv
+gt_small_012,vast_bundle_fz_bw/data_root/imu/imu_gt_12.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_12.csv
+gt_small_013,vast_bundle_fz_bw/data_root/imu/imu_gt_13.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_13.csv
+gt_small_014,vast_bundle_fz_bw/data_root/imu/imu_gt_14.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_14.csv
+gt_small_015,vast_bundle_fz_bw/data_root/imu/imu_gt_15.csv,vast_bundle_fz_bw/data_root/grf/grf_gt_15.csv
