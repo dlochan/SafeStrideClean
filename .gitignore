@@ -35,8 +35,15 @@ release/
 *.tar
 *.tar.gz
 
+# vNext outputs
+data/vnext_gt_real_out/
+data/vnext_gt_smoke_out/
+
 # OS
 .DS_Store
+._*
+.AppleDouble
+.LSOverride
 Thumbs.db
 
 # App specific
