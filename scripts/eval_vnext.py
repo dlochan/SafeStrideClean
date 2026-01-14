@@ -316,7 +316,15 @@ def main() -> None:
                     f"model.type='{model_type}', grf_axes='{grf_axes}'."
                 )
 
-            batch_metrics = compute_grf_metrics(y_hat, grf_v, axes=grf_axes)
+            # For metrics and exports we operate in the target GRF's native
+            # units. If target normalization was used during training, we
+            # denormalize predictions here, mirroring train_vnext behavior.
+            if target_norm is not None:
+                y_hat_for_metrics = target_norm.denormalize(y_hat)
+            else:
+                y_hat_for_metrics = y_hat
+
+            batch_metrics = compute_grf_metrics(y_hat_for_metrics, grf_v, axes=grf_axes)
 
             # Accumulate metrics by summing; we'll average at the end
             for k, v in batch_metrics.to_dict().items():
@@ -332,10 +340,11 @@ def main() -> None:
             trial_ids: List[str] = batch["trial_id"]
             start_idxs = batch["start_idx"]
 
-            # y_hat, grf_v: (B, T, D)
-            # Compute mean and peak over time dimension (dim=1)
-            y_mean = y_hat.mean(dim=1)  # (B, D)
-            y_peak, _ = y_hat.max(dim=1)  # (B, D)
+            # y_hat_for_metrics, grf_v: (B, T, D)
+            # Compute mean and peak over time dimension (dim=1) in the
+            # same space used for metrics.
+            y_mean = y_hat_for_metrics.mean(dim=1)  # (B, D)
+            y_peak, _ = y_hat_for_metrics.max(dim=1)  # (B, D)
 
             for i in range(y_hat.shape[0]):
                 trial_id = str(trial_ids[i])
@@ -360,7 +369,7 @@ def main() -> None:
                             .astype(np.float32)
                         )
                         arr_pred = (
-                            y_hat[i, :, 0]
+                            y_hat_for_metrics[i, :, 0]
                             .detach()
                             .cpu()
                             .numpy()
@@ -376,7 +385,7 @@ def main() -> None:
                             .astype(np.float32)
                         )
                         arr_pred = (
-                            y_hat[i]
+                            y_hat_for_metrics[i]
                             .detach()
                             .cpu()
                             .numpy()
