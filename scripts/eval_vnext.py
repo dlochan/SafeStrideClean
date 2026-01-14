@@ -348,11 +348,42 @@ def main() -> None:
                     }
                 )
 
-                if args.save_preds and grf_axes == "fz":
+                if args.save_preds:
                     pred_trial_ids.append(trial_id)
                     pred_start_idxs.append(start_idx)
-                    pred_y_true.append(grf_v[i, :, 0].detach().cpu().numpy().astype(np.float32))
-                    pred_y_pred.append(y_hat[i, :, 0].detach().cpu().numpy().astype(np.float32))
+                    if grf_axes == "fz":
+                        arr_true = (
+                            grf_v[i, :, 0]
+                            .detach()
+                            .cpu()
+                            .numpy()
+                            .astype(np.float32)
+                        )
+                        arr_pred = (
+                            y_hat[i, :, 0]
+                            .detach()
+                            .cpu()
+                            .numpy()
+                            .astype(np.float32)
+                        )
+                    else:
+                        # 3D GRF: export all axes [Fx, Fy, Fz] per window
+                        arr_true = (
+                            grf_v[i]
+                            .detach()
+                            .cpu()
+                            .numpy()
+                            .astype(np.float32)
+                        )
+                        arr_pred = (
+                            y_hat[i]
+                            .detach()
+                            .cpu()
+                            .numpy()
+                            .astype(np.float32)
+                        )
+                    pred_y_true.append(arr_true)
+                    pred_y_pred.append(arr_pred)
 
                 if grf_axes == "fz":
                     # Single-axis Fz
@@ -447,16 +478,13 @@ def main() -> None:
         return "".join(ch if (ch.isalnum() or ch in ("-", "_")) else "_" for ch in s)
 
     if args.save_preds:
-        if grf_axes != "fz":
-            logger.warning(
-                "--save-preds currently only exports fz windows; skipping for grf_axes!=fz"
+        if not pred_y_true:
+            raise SystemExit(
+                "--save-preds was set but no windows with GRF were collected; cannot write NPZ."
             )
-        else:
-            if not pred_y_true:
-                raise SystemExit(
-                    "--save-preds was set but no FZ windows were collected; cannot write NPZ."
-                )
 
+        # Fz-only exports retain the original behavior and units inference.
+        if grf_axes == "fz":
             inferred_target_col = None
             inferred_units = "unknown"
             try:
@@ -498,20 +526,30 @@ def main() -> None:
 
             suffix = _sanitize_suffix(args.preds_suffix) if args.preds_suffix is not None else ""
             fname = "fz_windows_pred_truth.npz" if not suffix else f"fz_windows_pred_truth_{suffix}.npz"
-            out_npz = preds_dir / fname
-            np.savez_compressed(
-                out_npz,
-                trial_id=np.array(pred_trial_ids, dtype=object),
-                start_idx=np.array(pred_start_idxs, dtype=np.int64),
-                y_true=np.stack(pred_y_true, axis=0),
-                y_pred=np.stack(pred_y_pred, axis=0),
-                window_len=int(pred_y_true[0].shape[0]),
+        else:
+            # 3D GRF export: Fx, Fy, Fz
+            suffix = _sanitize_suffix(args.preds_suffix) if args.preds_suffix is not None else ""
+            fname = (
+                "grf3d_windows_pred_truth.npz"
+                if not suffix
+                else f"grf3d_windows_pred_truth_{suffix}.npz"
             )
-            logger.info(f"Wrote prediction export: {out_npz}")
 
-            if args.analyze_after_eval:
-                if grf_axes != "fz":
-                    raise SystemExit("--analyze-after-eval is only supported for grf_axes='fz'")
+        out_npz = preds_dir / fname
+        y_true_arr = np.stack(pred_y_true, axis=0)
+        y_pred_arr = np.stack(pred_y_pred, axis=0)
+        np.savez_compressed(
+            out_npz,
+            trial_id=np.array(pred_trial_ids, dtype=object),
+            start_idx=np.array(pred_start_idxs, dtype=np.int64),
+            y_true=y_true_arr,
+            y_pred=y_pred_arr,
+            window_len=int(y_true_arr.shape[1]),
+        )
+        logger.info(f"Wrote prediction export: {out_npz}")
+
+        if args.analyze_after_eval:
+            if grf_axes == "fz":
                 if args.preds_suffix is None:
                     suffix_dir = ""
                 else:
@@ -538,6 +576,37 @@ def main() -> None:
                         "analyze_fz_outputs.py failed:\n" + (p.stdout or "") + "\n" + (p.stderr or "")
                     )
                 logger.info(f"Analyzer outputs written to: {out_dir}")
+            elif grf_axes == "3d":
+                if args.preds_suffix is None:
+                    suffix_dir = ""
+                else:
+                    suffix_dir = _sanitize_suffix(args.preds_suffix)
+                if args.analysis_out_dir is None:
+                    out_dir = run_dir / "analysis_eval"
+                    if suffix_dir:
+                        out_dir = out_dir / suffix_dir
+                else:
+                    out_dir = Path(args.analysis_out_dir)
+
+                cmd = [
+                    sys.executable,
+                    "scripts/analyze_3d_outputs.py",
+                    "--run-dir",
+                    str(run_dir),
+                ]
+                if args.preds_suffix is not None:
+                    cmd.extend(["--preds-suffix", _sanitize_suffix(args.preds_suffix)])
+                cmd.extend(["--out-dir", str(out_dir)])
+                p = subprocess.run(cmd, capture_output=True, text=True)
+                if p.returncode != 0:
+                    raise SystemExit(
+                        "analyze_3d_outputs.py failed:\n" + (p.stdout or "") + "\n" + (p.stderr or "")
+                    )
+                logger.info(f"3D analyzer outputs written to: {out_dir}")
+            else:
+                raise SystemExit(
+                    f"--analyze-after-eval is not supported for grf_axes='{grf_axes}'"
+                )
 
     if args.analyze_after_eval and not args.save_preds:
         raise SystemExit("--analyze-after-eval requires --save-preds")
