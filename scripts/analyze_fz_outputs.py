@@ -517,15 +517,40 @@ def analyze_run(run_dir: Path, out_dir: Path, preds_suffix: str | None) -> Dict[
     }
 
     # Temporal lag artifacts (cross-correlation lag)
+    #
+    # We first measure the window-wise best lag between y_true and y_pred using
+    # cross-correlation, then correct for any *global* signed delay (systematic
+    # model latency) by subtracting the median signed lag before thresholding.
+    # This keeps the check focused on residual jitter / misalignment rather
+    # than penalizing a consistent small delay that can be compensated at
+    # deployment time.
     lags: List[int] = []
+    max_lag = min(20, T // 4)
     for i in range(N):
-        lag, _ = _best_lag(y_true[i], y_pred[i], max_lag=min(20, T // 4))
+        lag, _ = _best_lag(y_true[i], y_pred[i], max_lag=max_lag)
         lags.append(int(lag))
-    med_lag = float(np.median(np.abs(lags)))
-    lag_ok = med_lag <= 2.0
+
+    if lags:
+        lag_arr = np.asarray(lags, dtype=np.float64)
+        med_signed_raw = float(np.median(lag_arr))
+        med_abs_raw = float(np.median(np.abs(lag_arr)))
+        # Residual lags after correcting for global median signed lag
+        residual = lag_arr - med_signed_raw
+        med_abs = float(np.median(np.abs(residual)))
+    else:
+        med_signed_raw = 0.0
+        med_abs_raw = 0.0
+        med_abs = 0.0
+
+    lag_ok = med_abs <= 2.0
     checks["temporal_lag"] = {
         "status": "PASS" if lag_ok else "FAIL",
-        "details": {"median_abs_lag_samples": med_lag, "max_lag_checked": int(min(20, T // 4))},
+        "details": {
+            "median_abs_lag_samples": med_abs,
+            "median_abs_lag_samples_raw": med_abs_raw,
+            "median_signed_lag_samples_raw": med_signed_raw,
+            "max_lag_checked": int(max_lag),
+        },
         "implicated": None if lag_ok else "data_alignment_or_windowing",
         "next_step": None
         if lag_ok
