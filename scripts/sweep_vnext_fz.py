@@ -6,6 +6,7 @@ import csv
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -28,15 +29,17 @@ def _load_base_config(path: Path) -> Dict[str, Any]:
     return cfg
 
 
-def _build_sweep_grid(base_cfg: Dict[str, Any], max_runs: int) -> List[Dict[str, Any]]:
+def _build_sweep_grid(base_cfg: Dict[str, Any], target_norm: str, max_runs: int) -> List[Dict[str, Any]]:
     training = base_cfg.get("training", {}) or {}
     model = base_cfg.get("model", {}) or {}
 
     base_backbone = str(model.get("backbone", "baseline_mlp")).lower()
 
-    lr_grid = [1e-3, 3e-4]
-    window_size_grid = [256, 512]
-    target_norm_grid = ["zscore", "none"]  # both are supported by train_vnext
+    # Focused but richer grid
+    lr_grid = [1e-3, 6e-4, 3e-4]
+    window_size_grid = [256, 512, 768]
+    window_stride_grid = [128, 256]
+    batch_size_grid = [8, 16]
 
     backbones: List[str] = []
     if base_backbone:
@@ -47,16 +50,23 @@ def _build_sweep_grid(base_cfg: Dict[str, Any], max_runs: int) -> List[Dict[str,
     combos: List[Dict[str, Any]] = []
     for lr in lr_grid:
         for ws in window_size_grid:
-            for tn in target_norm_grid:
-                for bb in backbones:
-                    combos.append(
-                        {
-                            "lr": float(lr),
-                            "window_size": int(ws),
-                            "target_norm": str(tn),
-                            "backbone": str(bb),
-                        }
-                    )
+            for stride in window_stride_grid:
+                # Guardrail: only keep stride values that are not too large
+                if stride > ws // 2:
+                    continue
+                for bs in batch_size_grid:
+                    for bb in backbones:
+                        combos.append(
+                            {
+                                "lr": float(lr),
+                                "window_size": int(ws),
+                                "window_stride": int(stride),
+                                "batch_size": int(bs),
+                                "epochs": 10,
+                                "target_norm": str(target_norm),
+                                "backbone": str(bb),
+                            }
+                        )
 
     return combos[:max_runs]
 
@@ -96,10 +106,12 @@ def _run_train_and_eval(
     train_cfg = cfg.setdefault("training", {}) or {}
     model_cfg = cfg.setdefault("model", {}) or {}
 
+    # Focused overrides from sweep grid
     train_cfg["lr"] = float(sweep_params["lr"])
     train_cfg["window_size"] = int(sweep_params["window_size"])
-    # Keep window_stride as-is from base config; record it for the leaderboard
-    train_cfg.setdefault("window_stride", train_cfg.get("window_stride", 128))
+    train_cfg["window_stride"] = int(sweep_params["window_stride"])
+    train_cfg["batch_size"] = int(sweep_params["batch_size"])
+    train_cfg["epochs"] = int(sweep_params.get("epochs", 10))
     train_cfg["target_norm"] = str(sweep_params["target_norm"])
 
     model_cfg["backbone"] = str(sweep_params["backbone"])
@@ -171,6 +183,7 @@ def _run_train_and_eval(
     batch_size = int(train_cfg.get("batch_size", 0))
     window_size = int(train_cfg.get("window_size", 0))
     window_stride = int(train_cfg.get("window_stride", 0))
+    epochs = int(train_cfg.get("epochs", 0))
     target_norm = str(train_cfg.get("target_norm", ""))
     backbone = str(model_cfg.get("backbone", ""))
 
@@ -184,6 +197,7 @@ def _run_train_and_eval(
         "backbone": backbone,
         "val_rmse_mean": val_rmse_mean,
         "nrmse_mean": nrmse_mean_val,
+        "epochs": epochs,
     }
 
     print(
@@ -216,8 +230,22 @@ def main(argv: List[str] | None = None) -> int:
     )
     ap.add_argument(
         "--out-csv",
-        default="data/vnext_gt_real_out/vnext_fz_sweep_results.csv",
-        help="Output CSV path for sweep leaderboard (default: data/vnext_gt_real_out/vnext_fz_sweep_results.csv)",
+        default="data/vnext_gt_real_out/vnext_fz_sweep_results_focus.csv",
+        help=(
+            "Output CSV path for sweep leaderboard "
+            "(default: data/vnext_gt_real_out/vnext_fz_sweep_results_focus.csv)"
+        ),
+    )
+    ap.add_argument(
+        "--target-norm",
+        default="none",
+        help="Target normalization mode for training (default: none; e.g. 'zscore')",
+    )
+    ap.add_argument(
+        "--max-minutes",
+        type=float,
+        default=None,
+        help="Optional wall-clock time budget in minutes; stop after finishing the current run.",
     )
     args = ap.parse_args(argv)
 
@@ -228,7 +256,7 @@ def main(argv: List[str] | None = None) -> int:
     base_cfg = _load_base_config(base_cfg_path)
     out_root = _resolve_out_root(base_cfg)
 
-    grid = _build_sweep_grid(base_cfg, max_runs=max(1, args.runs))
+    grid = _build_sweep_grid(base_cfg, target_norm=args.target_norm, max_runs=max(1, args.runs))
     if not grid:
         raise SystemExit("Sweep grid is empty; nothing to run")
 
@@ -244,19 +272,45 @@ def main(argv: List[str] | None = None) -> int:
     out_csv_path = (REPO_ROOT / args.out_csv).resolve()
     out_csv_path.parent.mkdir(parents=True, exist_ok=True)
 
+    start_time = time.time()
+
     rows: List[Dict[str, Any]] = []
 
     for idx, params in enumerate(grid, start=1):
-        run_dir_str, row = _run_train_and_eval(
-            idx=idx,
-            total=len(grid),
-            base_cfg=base_cfg,
-            sweep_params=params,
-            tmp_cfg_path=tmp_cfg_path,
-            device=args.device,
-            out_root=out_root,
-        )
+        try:
+            run_dir_str, row = _run_train_and_eval(
+                idx=idx,
+                total=len(grid),
+                base_cfg=base_cfg,
+                sweep_params=params,
+                tmp_cfg_path=tmp_cfg_path,
+                device=args.device,
+                out_root=out_root,
+            )
+        except subprocess.CalledProcessError:
+            bs = int(params.get("batch_size", 0))
+            if bs > 8:
+                print(
+                    f"[sweep] Run {idx}/{len(grid)} failed for batch_size={bs} "
+                    "(likely OOM); skipping configuration."
+                )
+                sys.stdout.flush()
+                continue
+            raise
+
         rows.append(row)
+
+        if args.max_minutes is not None:
+            elapsed_min = (time.time() - start_time) / 60.0
+            if elapsed_min >= args.max_minutes:
+                print(
+                    f"[sweep] Reached max_minutes={args.max_minutes} after run "
+                    f"{idx}/{len(grid)}; stopping early."
+                )
+                break
+
+    if not rows:
+        raise SystemExit("No successful sweep runs completed; nothing to write.")
 
     # Write leaderboard CSV
     fieldnames = [
@@ -269,6 +323,7 @@ def main(argv: List[str] | None = None) -> int:
         "backbone",
         "val_rmse_mean",
         "nrmse_mean",
+        "epochs",
     ]
 
     with out_csv_path.open("w", newline="", encoding="utf-8") as f:
@@ -289,6 +344,32 @@ def main(argv: List[str] | None = None) -> int:
             f"target_norm={row['target_norm']} | backbone={row['backbone']} | "
             f"val_rmse_mean={float(row['val_rmse_mean']):.4f} | nrmse_mean={nrmse_str}"
         )
+
+    # Persist best run details for downstream gates
+    best = sorted_rows[0]
+    winner_path = (
+        REPO_ROOT
+        / "data"
+        / "vnext_gt_real_out"
+        / "vnext_fz_sweep_winner.txt"
+    )
+    winner_path.parent.mkdir(parents=True, exist_ok=True)
+    best_nrmse = best["nrmse_mean"]
+    best_nrmse_str = "NA" if best_nrmse is None else f"{float(best_nrmse):.4f}"
+    with winner_path.open("w", encoding="utf-8") as wf:
+        wf.write(
+            f"{best['run_dir']} "
+            f"lr={best['lr']:.1e} "
+            f"batch_size={best['batch_size']} "
+            f"window_size={best['window_size']} "
+            f"window_stride={best['window_stride']} "
+            f"target_norm={best['target_norm']} "
+            f"backbone={best['backbone']} "
+            f"val_rmse_mean={float(best['val_rmse_mean']):.4f} "
+            f"nrmse_mean={best_nrmse_str} "
+            f"epochs={best['epochs']}\n"
+        )
+    print(f"[sweep] Winner written to: {winner_path}")
 
     print(f"[sweep] Results written to: {out_csv_path}")
     return 0
