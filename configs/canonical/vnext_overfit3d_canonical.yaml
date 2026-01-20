@@ -1,0 +1,34 @@
+# Canonical 3D overfit config (64-window contract). Source: data/vnext_gt_real_out/tmp_overfit3d_axis3_robust_400e.yaml
+
+paths:
+  data_root: data/vnext_gt_real
+  out_root: data/vnext_gt_real_out
+model:
+  type: grf3d
+  per_sensor_hidden: 32
+  fusion_hidden: 64
+  grf_axes: 3d
+features:
+  enable_kinematics: true
+data:
+  train_manifest: manifests/vnext_val_real.csv
+  val_manifest: manifests/vnext_val_real.csv
+  limit_windows_train: 0
+  limit_windows_val: 0
+  subset_indices_path: mp_converge_subset.json
+  subset_num_windows: 64
+training:
+  batch_size: 16
+  num_workers: 0
+  window_size: 256
+  window_stride: 128
+  epochs: 400
+  lr: 0.001
+  target_norm: robust
+  lr_scheduler: cosine
+  grad_clip_norm: 1.0
+  require_grf: true
+  axis_weights:
+    Fx: 1.0
+    Fy: 1.0
+    Fz: 3.0

@@ -10,7 +10,7 @@ import random
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 import subprocess
 
 try:
@@ -203,6 +203,69 @@ def main() -> None:
 
     if len(eval_ds) == 0:
         raise SystemExit("No evaluation windows available; check manifest and window configuration.")
+
+    logger.info("EVAL_FULL_SIZE=%d", len(eval_ds))
+
+    subset_indices_rel = data_cfg.get("subset_indices_path")
+    subset_num_windows = int(data_cfg.get("subset_num_windows", 0) or 0)
+    if subset_indices_rel:
+        subset_path = paths.out_root / str(subset_indices_rel)
+        if not subset_path.exists():
+            logger.warning(
+                "subset_indices_path is set but file does not exist: %s; proceeding without subset restriction.",
+                subset_path,
+            )
+        else:
+            try:
+                subset_obj = json.loads(subset_path.read_text(encoding="utf-8"))
+                requested_pairs = [
+                    (str(e["trial_id"]), int(e["start_idx"])) for e in subset_obj
+                ]
+            except Exception as e:  # pragma: no cover - defensive
+                logger.warning("Failed to load subset indices from %s: %r; proceeding without subset.", subset_path, e)
+                requested_pairs = []
+
+            if requested_pairs:
+                if subset_num_windows and subset_num_windows != len(requested_pairs):
+                    logger.warning(
+                        "subset_num_windows=%d but subset JSON length=%d",
+                        subset_num_windows,
+                        len(requested_pairs),
+                    )
+                expected_len = subset_num_windows or len(requested_pairs)
+                requested_pairs_set = set(requested_pairs)
+
+                mapping = {}
+                for idx in range(len(eval_ds)):
+                    rec = eval_ds[idx]
+                    if not isinstance(rec, dict):
+                        continue
+                    tid = str(rec.get("trial_id"))
+                    try:
+                        sidx = int(rec.get("start_idx"))
+                    except Exception:
+                        continue
+                    key = (tid, sidx)
+                    if key in requested_pairs_set and key not in mapping:
+                        mapping[key] = idx
+
+                indices = [mapping[p] for p in requested_pairs if p in mapping]
+                if len(indices) != expected_len:
+                    missing = [p for p in requested_pairs if p not in mapping]
+                    raise SystemExit(
+                        f"EVAL_subset produced {len(indices)} windows, expected {expected_len}; "
+                        f"missing_keys={missing}"
+                    )
+
+                first5_pairs = requested_pairs[: min(5, len(indices))]
+                last5_pairs = requested_pairs[max(0, len(requested_pairs) - min(5, len(indices))):]
+                logger.info(
+                    "EVAL_SUBSET_SIZE=%d FIRST5=%s LAST5=%s",
+                    len(indices),
+                    first5_pairs,
+                    last5_pairs,
+                )
+                eval_ds = Subset(eval_ds, indices)
 
     eval_loader = DataLoader(eval_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
@@ -572,6 +635,7 @@ def main() -> None:
 
                 cmd = [
                     sys.executable,
+                    "-S",
                     "scripts/analyze_fz_outputs.py",
                     "--run-dir",
                     str(run_dir),
@@ -599,6 +663,7 @@ def main() -> None:
 
                 cmd = [
                     sys.executable,
+                    "-S",
                     "scripts/analyze_3d_outputs.py",
                     "--run-dir",
                     str(run_dir),

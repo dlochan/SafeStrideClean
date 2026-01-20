@@ -16,6 +16,7 @@ coverage/
 
 # Python
 venv/
+.venv/
 .env/
 __pycache__/
 *.pyc
@@ -24,6 +25,8 @@ __pycache__/
 /data/
 datasets/
 logs/
+*.log
+overfit_*.log
 out/
 work/
 release/
@@ -38,6 +41,11 @@ release/
 # vNext outputs
 data/vnext_gt_real_out/
 data/vnext_gt_smoke_out/
+
+# Local scratch helpers
+tmp_*.sh
+scripts/run_mp*.sh
+scripts/scratch/
 
 # OS
 .DS_Store

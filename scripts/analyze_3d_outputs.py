@@ -179,7 +179,12 @@ def analyze_3d_run(run_dir: Path, out_dir: Path, preds_suffix: str | None) -> Di
             rmse_threshold = 5.0
         else:
             scale = "newton"
-            rmse_threshold = 500.0
+            # In Newton space we enforce a stricter Fz overfit threshold
+            # while keeping a looser bound for horizontal components.
+            if axis_name.lower().endswith("z"):
+                rmse_threshold = 150.0
+            else:
+                rmse_threshold = 500.0
 
         axis_info: Dict[str, Any] = {
             "rmse": rmse,
@@ -259,6 +264,40 @@ def analyze_3d_run(run_dir: Path, out_dir: Path, preds_suffix: str | None) -> Di
             + ",".join(sorted(corr_fail_axes))
         )
 
+    # Derive a run-level units label from the vertical axis when available.
+    units_detected: str | None
+    fz_info = axis_summaries.get("Fz") or axis_summaries.get("fz")
+    if isinstance(fz_info, dict):
+        scale = str(fz_info.get("scale", "")).lower()
+        if scale == "newton":
+            units_detected = "newtons"
+        elif scale == "normalized":
+            units_detected = "normalized"
+        else:
+            units_detected = None
+    else:
+        scales = {
+            str(info.get("scale", "")).lower()
+            for info in axis_summaries.values()
+            if isinstance(info, dict)
+        }
+        if len(scales) == 1:
+            only = next(iter(scales))
+            if only == "newton":
+                units_detected = "newtons"
+            elif only == "normalized":
+                units_detected = "normalized"
+            else:
+                units_detected = None
+        else:
+            units_detected = None
+
+    # Refuse to silently PASS when units cannot be determined.
+    if units_detected is None:
+        gate_reasons.append(
+            "Units detection failed or is ambiguous; refusing to PASS without explicit units."
+        )
+
     gate_ok = not gate_reasons
 
     summary: Dict[str, Any] = {
@@ -267,12 +306,13 @@ def analyze_3d_run(run_dir: Path, out_dir: Path, preds_suffix: str | None) -> Di
         "num_windows": int(n_windows),
         "window_len": int(window_len),
         "axis_summaries": axis_summaries,
+        "units_detected": units_detected,
     }
 
     summary["gate"] = {
         "status": "PASS" if gate_ok else "FAIL",
         "reasons": gate_reasons,
-        "rmse_thresholds": {"normalized": 5.0, "newton": 500.0},
+        "rmse_thresholds": {"normalized": 5.0, "newton": 150.0},
         "corr_min_abs": 0.3,
     }
 

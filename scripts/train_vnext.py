@@ -13,7 +13,7 @@ import csv
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 try:
     import vnext  # noqa: F401
@@ -191,6 +191,20 @@ def main() -> None:
 
     grf_axes = normalize_grf_axes(model_cfg.get("grf_axes"), model_type=model_type)
 
+    # Optional per-axis loss weighting for GRF3D overfit regimes.
+    # When training.axis_weights is provided in the config and grf_axes=='3d',
+    # we weight squared errors per axis before averaging to form the scalar
+    # loss, while keeping evaluation metrics in native, unweighted units.
+    axis_weights_cfg: Dict[str, Any] = train_cfg.get("axis_weights", {}) or {}
+    axis_weights = {
+        "Fx": float(axis_weights_cfg.get("Fx", 1.0)),
+        "Fy": float(axis_weights_cfg.get("Fy", 1.0)),
+        "Fz": float(axis_weights_cfg.get("Fz", 1.0)),
+    }
+    axis_weights_active = grf_axes == "3d" and any(
+        abs(axis_weights[name] - 1.0) > 1e-8 for name in ("Fx", "Fy", "Fz")
+    )
+
     gate_path = Path("analysis") / "FZ_TO_3D_GATE.md"
     if grf_axes == "3d" and not gate_path.exists():
         logger.warning(
@@ -214,9 +228,12 @@ def main() -> None:
         logger.warning("Train windowed dataset is empty; check window_size/stride and GRF availability.")
         raise SystemExit("No training windows available.")
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    logger.info("TRAIN_FULL_SIZE=%d", len(train_ds))
 
-    val_loader = None
+    # Optional deterministic subset of windows based on (trial_id, start_idx)
+    # when data.subset_indices_path is provided in the config. This is used
+    # by mp_converge_3d to enforce a fixed 64-window overfit subset.
+    val_ds = None
     if val_manifest_path is not None and val_manifest_path.exists():
         base_val = DualIMUTrialDataset(
             val_manifest_path,
@@ -231,8 +248,82 @@ def main() -> None:
         )
         if len(val_ds) == 0:
             logger.warning("Validation windowed dataset is empty; continuing without val metrics.")
+            val_ds = None
         else:
-            val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+            logger.info("VAL_FULL_SIZE=%d", len(val_ds))
+
+    subset_indices_rel = data_cfg.get("subset_indices_path")
+    subset_num_windows = int(data_cfg.get("subset_num_windows", 0) or 0)
+    if subset_indices_rel:
+        subset_path = paths.out_root / str(subset_indices_rel)
+        if not subset_path.exists():
+            logger.warning(
+                "subset_indices_path is set but file does not exist: %s; proceeding without subset restriction.",
+                subset_path,
+            )
+        else:
+            try:
+                subset_obj = json.loads(subset_path.read_text(encoding="utf-8"))
+                requested_pairs = [
+                    (str(e["trial_id"]), int(e["start_idx"])) for e in subset_obj
+                ]
+            except Exception as e:  # pragma: no cover - defensive
+                logger.warning("Failed to load subset indices from %s: %r; proceeding without subset.", subset_path, e)
+                requested_pairs = []
+
+            if requested_pairs:
+                if subset_num_windows and subset_num_windows != len(requested_pairs):
+                    logger.warning(
+                        "subset_num_windows=%d but subset JSON length=%d",
+                        subset_num_windows,
+                        len(requested_pairs),
+                    )
+                expected_len = subset_num_windows or len(requested_pairs)
+                requested_pairs_set = set(requested_pairs)
+
+                def _apply_subset(ds, tag):
+                    mapping = {}
+                    for idx in range(len(ds)):
+                        rec = ds[idx]
+                        if not isinstance(rec, dict):
+                            continue
+                        tid = str(rec.get("trial_id"))
+                        try:
+                            sidx = int(rec.get("start_idx"))
+                        except Exception:
+                            continue
+                        key = (tid, sidx)
+                        if key in requested_pairs_set and key not in mapping:
+                            mapping[key] = idx
+
+                    indices = [mapping[p] for p in requested_pairs if p in mapping]
+                    if len(indices) != expected_len:
+                        missing = [p for p in requested_pairs if p not in mapping]
+                        raise SystemExit(
+                            f"{tag}_subset produced {len(indices)} windows, expected {expected_len}; "
+                            f"missing_keys={missing}"
+                        )
+
+                    first5_pairs = requested_pairs[: min(5, len(indices))]
+                    last5_pairs = requested_pairs[max(0, len(requested_pairs) - min(5, len(indices))):]
+                    logger.info(
+                        "%s_SUBSET_SIZE=%d FIRST5=%s LAST5=%s",
+                        tag,
+                        len(indices),
+                        first5_pairs,
+                        last5_pairs,
+                    )
+                    return Subset(ds, indices)
+
+                train_ds = _apply_subset(train_ds, "TRAIN")
+                if val_ds is not None:
+                    val_ds = _apply_subset(val_ds, "VAL")
+
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+
+    val_loader = None
+    if val_ds is not None:
+        val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     device = torch.device(args.device)
 
@@ -279,7 +370,7 @@ def main() -> None:
     )
     logger.info(
         f"Upgrades: backbone={backbone}, target_norm={target_norm_kind}, lr_scheduler={lr_scheduler_kind}, "
-        f"grad_clip_norm={grad_clip_norm}"
+        f"grad_clip_norm={grad_clip_norm}, axis_weights={axis_weights if axis_weights_active else 'default'}"
     )
 
     # Run directory for this training job
@@ -506,7 +597,18 @@ def main() -> None:
                 y_hat_loss = y_hat_loss_src
                 grf_v_loss = grf_v_loss_src
 
-            loss = criterion(y_hat_loss, grf_v_loss)
+            if axis_weights_active and args.loss == "mse":
+                # Axis-weighted MSE in 3D space. We apply weights per-axis
+                # to the squared error tensor before averaging.
+                diff = y_hat_loss - grf_v_loss  # (B, T, D)
+                w = torch.tensor(
+                    [axis_weights["Fx"], axis_weights["Fy"], axis_weights["Fz"]],
+                    dtype=diff.dtype,
+                    device=diff.device,
+                ).view(1, 1, -1)
+                loss = torch.mean(w * (diff * diff))
+            else:
+                loss = criterion(y_hat_loss, grf_v_loss)
             if float(args.smooth_lambda) > 0.0 and y_hat_for_metrics.shape[1] >= 3:
                 d2 = (
                     y_hat_for_metrics[:, 2:, :]
@@ -626,7 +728,16 @@ def main() -> None:
                         y_hat_loss = y_hat_loss_src
                         grf_v_loss = grf_v_loss_src
 
-                    loss_v = criterion(y_hat_loss, grf_v_loss)
+                    if axis_weights_active and args.loss == "mse":
+                        diff_v = y_hat_loss - grf_v_loss
+                        w = torch.tensor(
+                            [axis_weights["Fx"], axis_weights["Fy"], axis_weights["Fz"]],
+                            dtype=diff_v.dtype,
+                            device=diff_v.device,
+                        ).view(1, 1, -1)
+                        loss_v = torch.mean(w * (diff_v * diff_v))
+                    else:
+                        loss_v = criterion(y_hat_loss, grf_v_loss)
                     if float(args.smooth_lambda) > 0.0 and y_hat_for_metrics.shape[1] >= 3:
                         d2 = (
                             y_hat_for_metrics[:, 2:, :]
