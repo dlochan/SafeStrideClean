@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+__SKIP_GATES__=0
+if [ "${1:-}" = "--skip-gates" ]; then
+  __SKIP_GATES__=1
+  shift || true
+fi
+
 pass_count=0
 fail_count=0
 
@@ -68,7 +74,10 @@ else
   note "python bytecode caches (__pycache__/ *.pyc) do not appear ignored (non-fatal)"
 fi
 
-echo "--- running 3D smoke ---"
+if [ "$__SKIP_GATES__" -eq 1 ]; then
+  echo "NOTE: gates skipped (--skip-gates)"
+else
+  echo "--- running 3D smoke ---"
 if bash scripts/mp_converge_3d_smoke.sh; then
   pass "mp_converge_3d_smoke"
 else
