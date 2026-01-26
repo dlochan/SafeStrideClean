@@ -11,13 +11,13 @@ pass_count=0
 fail_count=0
 
 pass() {
+  pass_count=$((pass_count+1))
   echo "PASS: $*"
-  pass_count=$((pass_count + 1))
 }
 
 fail() {
+  fail_count=$((fail_count+1))
   echo "FAIL: $*" >&2
-  fail_count=$((fail_count + 1))
 }
 
 note() {
