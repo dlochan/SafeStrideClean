@@ -74,9 +74,6 @@ else
   note "python bytecode caches (__pycache__/ *.pyc) do not appear ignored (non-fatal)"
 fi
 
-if [ "$__SKIP_GATES__" -eq 1 ]; then
-  echo "NOTE: gates skipped (--skip-gates)"
-else
 if [ "${__SKIP_GATES__:-0}" -eq 1 ]; then
   echo "NOTE: gates skipped (--skip-gates)"
 else
