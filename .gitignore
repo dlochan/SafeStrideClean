@@ -64,3 +64,17 @@ data/**/bundles/
 
 # Local artifacts
 artifacts/
+
+# Ignore hardening (generated caches)
+__pycache__/
+*.pyc
+*.pyo
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+dist/
+build/
+*.egg-info/

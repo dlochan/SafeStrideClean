@@ -18,6 +18,20 @@ note() {
   echo "NOTE: $*" >&2
 }
 
+for pollution_dir in app external reports; do
+  if [ -d "${pollution_dir}" ]; then
+    untracked_in_dir="$(git ls-files --others --exclude-standard -- "${pollution_dir}" || true)"
+    if [ -n "${untracked_in_dir}" ]; then
+      fail "POLLUTION PREFLIGHT: untracked files detected under '${pollution_dir}'"
+      echo "--- first 50 untracked paths under ${pollution_dir} ---" >&2
+      echo "${untracked_in_dir}" | sed -n '1,50p' >&2
+      echo "Delete the accidental folder(s) or explicitly add legitimate sources to git, then re-run." >&2
+      exit 4
+    fi
+    note "POLLUTION PREFLIGHT: '${pollution_dir}' exists but has no untracked (non-ignored) files"
+  fi
+done
+
 status_out="$(git status --porcelain=v1)"
 if [ -n "${status_out}" ]; then
   fail "working tree not clean"
