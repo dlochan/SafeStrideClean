@@ -60,3 +60,13 @@ For a given `RUN_DIR` (e.g. `data/vnext_gt_real_out/vnext_fz/20260119-033819_df2
 - `<RUN_DIR>/analysis_eval_full/3d_metrics_summary.json`
 
 These contain the full 3D RMSE and correlation metrics (in Newtons) for ~180 windows on the canonical validation manifest.
+
+## One-liner: make eval bundle (read_only)
+
+Creates a read-only evaluation bundle for the canonical run (no training, no new eval passes):
+
+```bash
+bash scripts/make_3d_eval_bundle.sh data/vnext_gt_real_out/vnext_fz/20260119-033819_df2881d2 --mode read_only
+```
+
+This writes into `<RUN_DIR>/bundles/...` under the given run directory and does not modify any model checkpoints or canonical artifacts.
