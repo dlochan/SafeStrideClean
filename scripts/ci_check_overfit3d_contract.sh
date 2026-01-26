@@ -21,3 +21,7 @@ echo "[ci_check_overfit3d_contract] Using analyzer JSON: ${JSON_PATH}" >&2
 python3 scripts/check_overfit3d_contract.py
 
 echo "CI PASS overfit3d_contract"
+
+echo "--- non-regression vs baseline ---"
+python3 scripts/check_overfit3d_nonregression.py "data/vnext_gt_real_out/vnext_fz/20260119-033819_df2881d2/analysis_eval/3d_metrics_summary.json" "tests/baselines/overfit3d_contract_baseline.json"
+echo "PASS non-regression"

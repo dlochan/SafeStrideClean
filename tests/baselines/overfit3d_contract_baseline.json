@@ -1,0 +1,13 @@
+{
+  "extract": {
+    "Fz_corr": 0.9931044705130029,
+    "Fz_rmse": 63.46100564487282,
+    "len": 256,
+    "units": "newtons",
+    "windows": 64
+  },
+  "source": {
+    "analyzer_json": "data/vnext_gt_real_out/vnext_fz/20260119-033819_df2881d2/analysis_eval/3d_metrics_summary.json",
+    "created_unix": 1769406801
+  }
+}
