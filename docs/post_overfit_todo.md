@@ -24,3 +24,7 @@
 
 ## 4. Next step
 Read-only extraction of `eval/eval_metrics_val.json` from canonical run `data/vnext_gt_real_out/vnext_fz/20260119-033819_df2881d2`.
+
+## 5. Regression checks
+
+- `bash scripts/ci_check_overfit3d_contract.sh`

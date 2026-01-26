@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # SafeStride Project
 
 SafeStride is a project designed to process Inertial Measurement Unit (IMU) data to predict Ground Reaction Forces (GRF) that are ready for integration with OpenSim for inverse kinematics (IK) and inverse dynamics (ID) analysis.
@@ -203,6 +202,7 @@ After training, the notebook also saves an image of the confusion matrices here:
 - Real medical decisions should be made by doctors. We use this as a learning tool and a first step.
 
 I hope you have fun exploring how AI can learn from motion! 😊 — Dev
-=======
-# SafeStride
->>>>>>> f0cb1e8f0c850c60d180d7901221de57c83c71f9
+
+## MP_CONVERGE_3D entrypoint
+
+See `docs/MP_CONVERGE_3D_ENTRYPOINT.md` for the canonical 3D overfit/generalization pipeline entrypoint (overfit contract, smoke runner, and full-manifest eval).
