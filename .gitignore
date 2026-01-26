@@ -61,3 +61,6 @@ app/node_modules/
 data/**/bundles/
 **/.DS_Store
 **/._*
+
+# Local artifacts
+artifacts/
