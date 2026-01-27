@@ -85,6 +85,14 @@ else
   echo "PASS: ci_check_overfit3d_contract"
 fi
 
+  echo "--- running IMU schema smoke ---"
+  if bash scripts/imu_schema_smoke.sh; then
+    pass "imu_schema_smoke"
+  else
+    fail "imu_schema_smoke"
+    exit 12
+  fi
+
 echo "--- summary ---"
 echo "PASS_COUNT=${pass_count}"
 echo "FAIL_COUNT=${fail_count}"
