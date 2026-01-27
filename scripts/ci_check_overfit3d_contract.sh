@@ -14,9 +14,7 @@ export ANALYZER_JSON
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}" )/.." && pwd)"
 cd "${ROOT}"
-
-JSON_PATH="data/vnext_gt_real_out/vnext_fz/20260119-033819_df2881d2/analysis_eval/3d_metrics_summary.json"
-
+JSON_PATH="${ANALYZER_JSON}"
 if [ ! -f "${JSON_PATH}" ]; then
   echo "CI FAIL overfit3d_contract: missing analyzer JSON at ${JSON_PATH}" >&2
   exit 1
