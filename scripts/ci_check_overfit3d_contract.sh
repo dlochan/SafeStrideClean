@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+## DEFAULT_ANALYZER_JSON
+# Allow caller to override; otherwise use known-good default path
+ANALYZER_JSON="${ANALYZER_JSON:-data/vnext_gt_real_out/vnext_fz/20260119-033819_df2881d2/analysis_eval/3d_metrics_summary.json}"
+export ANALYZER_JSON
+
+
 # CI-friendly wrapper around the canonical 3D overfit contract.
 # - Uses existing analyzer artifacts only (no training, no eval).
 # - Fails fast if the canonical summary JSON is missing.
