@@ -6,8 +6,7 @@
     "units": "newtons",
     "windows": 64
   },
-  "source": {
-    "analyzer_json": "data/vnext_gt_real_out/vnext_fz/20260119-033819_df2881d2/analysis_eval/3d_metrics_summary.json",
-    "created_unix": 1769406801
+  "meta": {
+    "source_analyzer_json": "data/vnext_gt_real_out/vnext_fz/20260119-033819_df2881d2/analysis_eval/3d_metrics_summary.json"
   }
 }
