@@ -228,3 +228,121 @@ def run_imu_to_grf(
         }
 
     return result
+
+
+def run_imu_to_grf_batch(
+    imu_dir: str,
+    window_len: int = 256,
+    stride: int = 1,
+    num_windows: int = 64,
+    profile: bool = False,
+    seed: int = 12345,
+    pattern: str = "*.csv",
+) -> Dict[str, Any]:
+    """Run IMU→GRF inference over a directory of CSVs.
+
+    This function is a thin batch wrapper around ``run_imu_to_grf`` that
+    iterates over all files in ``imu_dir`` matching ``pattern``, sorted
+    lexicographically. Individual failures are recorded in the results and do
+    not stop the batch.
+    """
+
+    base = Path(imu_dir)
+    files = sorted(
+        p
+        for p in base.glob(pattern)
+        if p.is_file() and not p.name.startswith("._")
+    )
+
+    results: list[Dict[str, Any]] = []
+    num_files = len(files)
+    num_ok = 0
+    num_failed = 0
+
+    total_ms_vals: list[float] = []
+    rss_mb_vals: list[float] = []
+
+    for csv_path in files:
+        entry: Dict[str, Any]
+        try:
+            out = run_imu_to_grf(
+                str(csv_path),
+                window_len=window_len,
+                stride=stride,
+                num_windows=num_windows,
+                model="vnext_fz",
+                seed=seed,
+                profile=profile,
+            )
+
+            entry = {
+                "imu_csv": str(csv_path),
+                "ok": True,
+                "model": out.get("model"),
+                "output": out.get("output"),
+            }
+
+            if profile:
+                perf = out.get("perf")
+                if isinstance(perf, dict):
+                    perf_dict = dict(perf)
+                    entry["perf"] = perf_dict
+                    t_ms = perf_dict.get("total_ms")
+                    rss = perf_dict.get("rss_mb")
+                    if isinstance(t_ms, (int, float)):
+                        total_ms_vals.append(float(t_ms))
+                    if isinstance(rss, (int, float)):
+                        rss_mb_vals.append(float(rss))
+
+            num_ok += 1
+        except Exception as e:  # pragma: no cover - defensive
+            entry = {
+                "imu_csv": str(csv_path),
+                "ok": False,
+                "error": f"{e.__class__.__name__}: {e}",
+            }
+            num_failed += 1
+
+        results.append(entry)
+
+    num_files = len(files)
+    ok_rate = float(num_ok) / float(num_files) if num_files > 0 else 0.0
+
+    summary: Dict[str, Any] = {
+        "ok_rate": float(ok_rate),
+    }
+
+    if profile and total_ms_vals:
+        vals = sorted(total_ms_vals)
+        n = len(vals)
+        if n % 2 == 1:
+            p50 = vals[n // 2]
+        else:
+            p50 = 0.5 * (vals[n // 2 - 1] + vals[n // 2])
+        p95 = vals[-1]
+        max_rss = max(rss_mb_vals) if rss_mb_vals else 0.0
+
+        summary["p50_total_ms"] = float(p50)
+        summary["p95_total_ms"] = float(p95)
+        summary["max_rss_mb"] = float(max_rss)
+
+    result: Dict[str, Any] = {
+        "schema_version": "imu_grf_batch_v1",
+        "metadata": {
+            "deterministic_seed": int(seed),
+            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "git_commit": _get_git_short_commit(),
+            "num_files": int(num_files),
+            "num_ok": int(num_ok),
+            "num_failed": int(num_failed),
+        },
+        "config": {
+            "window_len": int(window_len),
+            "stride": int(stride),
+            "num_windows": int(num_windows),
+        },
+        "results": results,
+        "summary": summary,
+    }
+
+    return result

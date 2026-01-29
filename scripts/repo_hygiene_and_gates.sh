@@ -149,6 +149,14 @@ fi
     exit 20
   fi
 
+  echo "--- running IMU -> GRF API batch contract ---"
+  if bash scripts/ci_check_imu_grf_api_batch_contract.sh; then
+    pass "ci_check_imu_grf_api_batch_contract"
+  else
+    fail "ci_check_imu_grf_api_batch_contract"
+    exit 26
+  fi
+
   echo "--- running IMU→GRF perf gate ---"
   if bash scripts/ci_check_imu_grf_perf.sh; then
     pass "ci_check_imu_grf_perf"
