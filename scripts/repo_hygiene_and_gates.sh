@@ -117,6 +117,14 @@ fi
     exit 14
   fi
 
+  echo "--- running IMU -> GRF input smoke ---"
+  if bash scripts/imu_to_grf_input_smoke.sh; then
+    pass "imu_to_grf_input_smoke"
+  else
+    fail "imu_to_grf_input_smoke"
+    exit 15
+  fi
+
 echo "--- summary ---"
 echo "PASS_COUNT=${pass_count}"
 echo "FAIL_COUNT=${fail_count}"
