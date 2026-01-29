@@ -98,6 +98,14 @@ fi
     pass "imu_features_smoke"
   else
     fail "imu_features_smoke"
+    exit 12
+  fi
+
+  echo "--- running IMU contract ---"
+  if bash scripts/ci_check_imu_contract.sh; then
+    pass "ci_check_imu_contract"
+  else
+    fail "ci_check_imu_contract"
     exit 13
   fi
 

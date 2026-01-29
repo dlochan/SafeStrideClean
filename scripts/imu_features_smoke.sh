@@ -18,5 +18,3 @@ feats = extract_features(windowed, include_magnitude=False)
 
 print(f"IMU_FEATURES_TENSOR_SHAPE={feats.X.shape}")
 PY
-
-echo "PASS: imu_features_smoke"
