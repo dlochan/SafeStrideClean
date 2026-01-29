@@ -117,6 +117,14 @@ fi
     exit 14
   fi
 
+  echo "--- running IMU normalize smoke ---"
+  if bash scripts/imu_normalize_smoke.sh; then
+    pass "imu_normalize_smoke"
+  else
+    fail "imu_normalize_smoke"
+    exit 34
+  fi
+
   echo "--- running IMU -> GRF input smoke ---"
   if bash scripts/imu_to_grf_input_smoke.sh; then
     pass "imu_to_grf_input_smoke"
