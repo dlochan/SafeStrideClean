@@ -33,6 +33,13 @@ else
   echo "WARN: run_psu_demo.sh missing" | tee "$OUT_DIR/run_psu_demo.txt"
 fi
 
+# 3b) Run IMU demo entrypoint if present
+if [ -f run_imu_demo.sh ]; then
+  bash ./run_imu_demo.sh | tee "$OUT_DIR/run_imu_demo.txt"
+else
+  echo "WARN: run_imu_demo.sh missing" | tee "$OUT_DIR/run_imu_demo.txt"
+fi
+
 # 4) If you have a bundle contract / verification script, run it
 if [ -f scripts/ci_check_overfit3d_contract.sh ]; then
   bash scripts/ci_check_overfit3d_contract.sh | tee "$OUT_DIR/ci_check_overfit3d_contract.txt"
