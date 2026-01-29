@@ -173,6 +173,14 @@ fi
     exit 24
   fi
 
+  echo "--- running PSU bundle contract ---"
+  if bash scripts/ci_check_psu_bundle_contract.sh; then
+    pass "ci_check_psu_bundle_contract"
+  else
+    fail "ci_check_psu_bundle_contract"
+    exit 30
+  fi
+
 echo "--- summary ---"
 echo "PASS_COUNT=${pass_count}"
 echo "FAIL_COUNT=${fail_count}"

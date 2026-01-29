@@ -1,0 +1,58 @@
+{
+  "batch": {
+    "first_output_shape": [
+      64,
+      256,
+      1
+    ],
+    "num_failed": 0,
+    "num_files": 2,
+    "num_ok": 2,
+    "perf_required_keys": [
+      "total_ms",
+      "forward_ms",
+      "rss_mb",
+      "build_input_ms"
+    ],
+    "result_required_keys": [
+      "imu_csv",
+      "ok",
+      "model",
+      "output",
+      "perf"
+    ],
+    "schema_version": "imu_grf_batch_v1"
+  },
+  "provenance": {
+    "substrings": [
+      "BATCH:",
+      "num_files_expected=2",
+      "batch_schema_version_expected=imu_grf_batch_v1"
+    ]
+  },
+  "required_files": [
+    "bundle_manifest.txt",
+    "imu_to_grf_batch_output.json",
+    "imu_to_grf_batch_perf.txt",
+    "imu_to_grf_output.json",
+    "imu_to_grf_perf.txt",
+    "provenance.txt"
+  ],
+  "single": {
+    "input_channels": 12,
+    "model": "vnext_fz",
+    "output_shape": [
+      64,
+      256,
+      1
+    ],
+    "schema_version": "imu_grf_v1",
+    "stats_keys": [
+      "finite_fraction",
+      "min",
+      "max",
+      "mean",
+      "std"
+    ]
+  }
+}
