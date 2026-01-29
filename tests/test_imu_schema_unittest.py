@@ -15,11 +15,13 @@ class TestIMUSchema(unittest.TestCase):
 
         self.assertTrue(all(r.mag_x is not None for r in rows))
 
-        t = [r.t_ms for r in rows]
-        for a, b in zip(t, t[1:]):
-# NOTE: global monotonic t_ms is not valid for interleaved multi-sensor logs
-# Old assertion removed; replaced with per-sensor monotonic check below.
-#             self.assertLessEqual(a, b)
+        by_sensor = {}
+        for r in rows:
+            by_sensor.setdefault(r.sensor_id, []).append(r.t_ms)
+
+        for sensor_id, t in sorted(by_sensor.items()):
+            for a, b in zip(t, t[1:]):
+                self.assertLessEqual(a, b, msg=f"non_monotonic_t_ms sensor={sensor_id} a={a} b={b}")
 
 
 if __name__ == "__main__":
