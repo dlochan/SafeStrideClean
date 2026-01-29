@@ -1,6 +1,12 @@
 import unittest
 from pathlib import Path
 
+import sys
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 from src.imu.schema import parse_imu_csv
 
 
@@ -14,6 +20,10 @@ class TestIMUSchema(unittest.TestCase):
         self.assertEqual(sensors, ["shank", "thigh"])
 
         self.assertTrue(all(r.mag_x is not None for r in rows))
+
+        # Expect at least one interleaving between streams in the fixture.
+        self.assertGreaterEqual(len(rows), 4)
+        self.assertNotEqual(rows[0].sensor_id, rows[1].sensor_id)
 
         by_sensor = {}
         for r in rows:

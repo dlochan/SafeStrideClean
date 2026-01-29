@@ -93,6 +93,14 @@ fi
     exit 12
   fi
 
+  echo "--- running IMU features smoke ---"
+  if bash scripts/imu_features_smoke.sh; then
+    pass "imu_features_smoke"
+  else
+    fail "imu_features_smoke"
+    exit 13
+  fi
+
 echo "--- summary ---"
 echo "PASS_COUNT=${pass_count}"
 echo "FAIL_COUNT=${fail_count}"
