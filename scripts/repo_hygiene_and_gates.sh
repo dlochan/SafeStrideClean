@@ -141,6 +141,14 @@ fi
     exit 18
   fi
 
+  echo "--- running IMU -> GRF API contract ---"
+  if python3 -m unittest -q tests.contracts.test_imu_grf_api_contract; then
+    pass "imu_grf_api_contract"
+  else
+    fail "imu_grf_api_contract"
+    exit 20
+  fi
+
 echo "--- summary ---"
 echo "PASS_COUNT=${pass_count}"
 echo "FAIL_COUNT=${fail_count}"
