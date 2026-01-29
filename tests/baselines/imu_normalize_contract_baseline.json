@@ -1,0 +1,117 @@
+{
+  "canon_cols": [
+    "axx_thigh",
+    "axy_thigh",
+    "axz_thigh",
+    "gxx_thigh",
+    "gxy_thigh",
+    "gxz_thigh",
+    "axx_shank",
+    "axy_shank",
+    "axz_shank",
+    "gxx_shank",
+    "gxy_shank",
+    "gxz_shank"
+  ],
+  "dtypes": {
+    "axx_shank": "float32",
+    "axx_thigh": "float32",
+    "axy_shank": "float32",
+    "axy_thigh": "float32",
+    "axz_shank": "float32",
+    "axz_thigh": "float32",
+    "gxx_shank": "float32",
+    "gxx_thigh": "float32",
+    "gxy_shank": "float32",
+    "gxy_thigh": "float32",
+    "gxz_shank": "float32",
+    "gxz_thigh": "float32"
+  },
+  "finite_fraction": 1.0,
+  "fixture": "tests/fixtures/imu_messy.csv",
+  "global_stats": {
+    "max": 0.6000000238418579,
+    "mean": 0.1925000036135316,
+    "min": 0.009999999776482582,
+    "std": 0.1988351547359064
+  },
+  "per_col_stats": {
+    "axx_shank": {
+      "max": 0.4000000059604645,
+      "mean": 0.4000000059604645,
+      "min": 0.4000000059604645,
+      "std": 0.0
+    },
+    "axx_thigh": {
+      "max": 0.10000000149011612,
+      "mean": 0.10000000149011612,
+      "min": 0.10000000149011612,
+      "std": 0.0
+    },
+    "axy_shank": {
+      "max": 0.5,
+      "mean": 0.5,
+      "min": 0.5,
+      "std": 0.0
+    },
+    "axy_thigh": {
+      "max": 0.20000000298023224,
+      "mean": 0.20000000298023224,
+      "min": 0.20000000298023224,
+      "std": 0.0
+    },
+    "axz_shank": {
+      "max": 0.6000000238418579,
+      "mean": 0.6000000238418579,
+      "min": 0.6000000238418579,
+      "std": 0.0
+    },
+    "axz_thigh": {
+      "max": 0.30000001192092896,
+      "mean": 0.30000001192092896,
+      "min": 0.30000001192092896,
+      "std": 0.0
+    },
+    "gxx_shank": {
+      "max": 0.03999999910593033,
+      "mean": 0.03999999910593033,
+      "min": 0.03999999910593033,
+      "std": 0.0
+    },
+    "gxx_thigh": {
+      "max": 0.009999999776482582,
+      "mean": 0.009999999776482582,
+      "min": 0.009999999776482582,
+      "std": 0.0
+    },
+    "gxy_shank": {
+      "max": 0.05000000074505806,
+      "mean": 0.05000000074505806,
+      "min": 0.05000000074505806,
+      "std": 0.0
+    },
+    "gxy_thigh": {
+      "max": 0.019999999552965164,
+      "mean": 0.019999999552965164,
+      "min": 0.019999999552965164,
+      "std": 0.0
+    },
+    "gxz_shank": {
+      "max": 0.05999999865889549,
+      "mean": 0.05999999865889549,
+      "min": 0.05999999865889549,
+      "std": 0.0
+    },
+    "gxz_thigh": {
+      "max": 0.029999999329447746,
+      "mean": 0.029999999329447746,
+      "min": 0.029999999329447746,
+      "std": 0.0
+    }
+  },
+  "schema_version": "imu_normalize_contract_v1",
+  "shape": [
+    320,
+    12
+  ]
+}

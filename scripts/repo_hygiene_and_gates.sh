@@ -125,6 +125,14 @@ fi
     exit 34
   fi
 
+  echo "--- running IMU normalize contract ---"
+  if bash scripts/ci_check_imu_normalize_contract.sh; then
+    pass "ci_check_imu_normalize_contract"
+  else
+    fail "ci_check_imu_normalize_contract"
+    exit 44
+  fi
+
   echo "--- running IMU -> GRF input smoke ---"
   if bash scripts/imu_to_grf_input_smoke.sh; then
     pass "imu_to_grf_input_smoke"
