@@ -42,3 +42,8 @@ try:
 except Exception:
     print("torch_version=unavailable")
 PY
+
+echo "BATCH:"
+echo "batch_inputs_dir=batch_inputs"
+echo "num_files_expected=2"
+echo "batch_schema_version_expected=imu_grf_batch_v1"
