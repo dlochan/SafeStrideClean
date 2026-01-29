@@ -20,6 +20,25 @@ EXIT_NONFINITE = 42
 EXIT_SCHEMA_MISMATCH = 43
 
 
+class SchemaMismatchError(Exception):
+    def __init__(self, expected: List[str], actual: List[str]) -> None:
+        super().__init__("schema mismatch")
+        self.expected = expected
+        self.actual = actual
+
+
+class DTypeMismatchError(Exception):
+    def __init__(self, bad_dtypes: Dict[str, str]) -> None:
+        super().__init__("dtype mismatch")
+        self.bad_dtypes = bad_dtypes
+
+
+class NonFiniteError(Exception):
+    def __init__(self, finite_fraction: float) -> None:
+        super().__init__("non-finite values")
+        self.finite_fraction = finite_fraction
+
+
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
@@ -55,21 +74,16 @@ def _load_normalized_df() -> Tuple[pd.DataFrame, List[str]]:
     # Enforce exact canonical columns (order + names).
     cols = list(df.columns)
     if cols != feature_cols:
-        print(
-            "IMU_NORMALIZE_CONTRACT schema mismatch: "
-            f"got columns={cols}, expected={feature_cols}",
-        )
-        raise SystemExit(EXIT_SCHEMA_MISMATCH)
+        raise SchemaMismatchError(feature_cols, cols)
 
     # Enforce float32 dtype for every canonical column.
+    bad_dtypes: Dict[str, str] = {}
     for name in feature_cols:
         dt = np.dtype(df[name].dtype)
         if dt != np.float32:
-            print(
-                "IMU_NORMALIZE_CONTRACT dtype mismatch: "
-                f"column {name!r} has dtype {dt}, expected float32",
-            )
-            raise SystemExit(EXIT_SCHEMA_MISMATCH)
+            bad_dtypes[name] = str(dt)
+    if bad_dtypes:
+        raise DTypeMismatchError(bad_dtypes)
 
     # Enforce finiteness of all values, computing fraction in float64.
     values64 = df.to_numpy(dtype=np.float64, copy=False)
@@ -82,11 +96,7 @@ def _load_normalized_df() -> Tuple[pd.DataFrame, List[str]]:
         finite_fraction = float(finite_count / total)
 
     if finite_fraction != 1.0:
-        print(
-            "IMU_NORMALIZE_CONTRACT non-finite values: "
-            f"finite_fraction={finite_fraction:.9f}",
-        )
-        raise SystemExit(EXIT_NONFINITE)
+        raise NonFiniteError(finite_fraction)
 
     return df, feature_cols
 
@@ -267,6 +277,14 @@ def _parse_args(argv: List[str]) -> argparse.Namespace:
         choices=["compute", "check"],
         help="Mode: compute baseline JSON or check against it",
     )
+    parser.add_argument(
+        "--print_regen_cmd",
+        action="store_true",
+        help=(
+            "In check mode, print a helper command for regenerating the "
+            "baseline JSON (does not modify files)."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -274,7 +292,42 @@ def main(argv: List[str]) -> None:
     args = _parse_args(argv)
     baseline_path = Path(args.baseline)
 
-    df, feature_cols = _load_normalized_df()
+    regen_cmd = (
+        "python scripts/check_imu_normalize_nonregression.py "
+        "--mode compute --baseline "
+        f"{baseline_path}"
+    )
+
+    try:
+        df, feature_cols = _load_normalized_df()
+    except SchemaMismatchError as exc:
+        expected_cols = list(exc.expected)
+        actual_cols = list(exc.actual)
+        missing = [c for c in expected_cols if c not in actual_cols]
+        extra = [c for c in actual_cols if c not in expected_cols]
+        print("FAIL imu_normalize_contract: schema mismatch")
+        print(f"expected_cols_n={len(expected_cols)}")
+        print(f"actual_cols_n={len(actual_cols)}")
+        print(f"missing_cols={','.join(missing[:10])}")
+        print(f"extra_cols={','.join(extra[:10])}")
+        if args.mode == "check" and args.print_regen_cmd:
+            print(f"REGEN_BASELINE_CMD={regen_cmd}")
+        raise SystemExit(EXIT_SCHEMA_MISMATCH)
+    except DTypeMismatchError as exc:
+        bad_items = [f"{name}={dt}" for name, dt in sorted(exc.bad_dtypes.items())]
+        print("FAIL imu_normalize_contract: dtype mismatch")
+        print(f"bad_dtypes={','.join(bad_items[:10])}")
+        if args.mode == "check" and args.print_regen_cmd:
+            print(f"REGEN_BASELINE_CMD={regen_cmd}")
+        raise SystemExit(EXIT_SCHEMA_MISMATCH)
+    except NonFiniteError as exc:
+        finite_fraction = float(exc.finite_fraction)
+        print("FAIL imu_normalize_contract: non-finite values")
+        print(f"finite_fraction={finite_fraction:.9f}")
+        if args.mode == "check" and args.print_regen_cmd:
+            print(f"REGEN_BASELINE_CMD={regen_cmd}")
+        raise SystemExit(EXIT_NONFINITE)
+
     current = _compute_stats(df, feature_cols)
 
     if args.mode == "compute":
@@ -297,30 +350,71 @@ def main(argv: List[str]) -> None:
         col_diffs = diff_info.get("col_diffs", []) or []
         global_diffs = diff_info.get("global_diffs", {}) or {}
 
-        for diff in col_diffs[:3]:
-            name = diff.get("name", "<unknown>")
+        print("FAIL imu_normalize_contract: stats drift")
+
+        if col_diffs:
+            # Worst offenders per-metric.
+            worst_mean = max(col_diffs, key=lambda d: d.get("mean_diff", 0.0))
+            worst_std = max(col_diffs, key=lambda d: d.get("std_diff", 0.0))
+            worst_min = max(col_diffs, key=lambda d: d.get("min_diff", 0.0))
+            worst_max = max(col_diffs, key=lambda d: d.get("max_diff", 0.0))
+
             print(
-                "IMU_NORMALIZE_CONTRACT COL_DIFF "
-                f"{name}: "
-                f"min_diff={diff.get('min_diff', 0.0):.6g} "
-                f"max_diff={diff.get('max_diff', 0.0):.6g} "
-                f"mean_diff={diff.get('mean_diff', 0.0):.6g} "
-                f"std_diff={diff.get('std_diff', 0.0):.6g}",
+                "worst_mean_diff: col="
+                f"{worst_mean.get('name', '<unknown>')} diff="
+                f"{float(worst_mean.get('mean_diff', 0.0)):.6g}"
+            )
+            print(
+                "worst_std_diff:  col="
+                f"{worst_std.get('name', '<unknown>')} diff="
+                f"{float(worst_std.get('std_diff', 0.0)):.6g}"
+            )
+            print(
+                "worst_min_diff:  col="
+                f"{worst_min.get('name', '<unknown>')} diff="
+                f"{float(worst_min.get('min_diff', 0.0)):.6g}"
+            )
+            print(
+                "worst_max_diff:  col="
+                f"{worst_max.get('name', '<unknown>')} diff="
+                f"{float(worst_max.get('max_diff', 0.0)):.6g}"
             )
 
-        if global_diffs:
-            print(
-                "IMU_NORMALIZE_CONTRACT GLOBAL_DIFF "
-                f"min_diff={global_diffs.get('min_diff', 0.0):.6g} "
-                f"max_diff={global_diffs.get('max_diff', 0.0):.6g} "
-                f"mean_diff={global_diffs.get('mean_diff', 0.0):.6g} "
-                f"std_diff={global_diffs.get('std_diff', 0.0):.6g}",
-            )
+            # Top 5 columns by combined score.
+            scored = []
+            for d in col_diffs:
+                score = max(
+                    float(d.get("mean_diff", 0.0)),
+                    float(d.get("std_diff", 0.0)),
+                    float(d.get("min_diff", 0.0)),
+                    float(d.get("max_diff", 0.0)),
+                )
+                scored.append((d.get("name", "<unknown>"), score))
+            scored.sort(key=lambda t: t[1], reverse=True)
+            top_items = [f"{name}:{score:.6g}" for name, score in scored[:5]]
+            print(f"TOP_DRIFT_COLS={','.join(top_items)}")
+        else:
+            # No per-column diffs but global stats drifted.
+            print("worst_mean_diff: col=<none> diff=0")
+            print("worst_std_diff:  col=<none> diff=0")
+            print("worst_min_diff:  col=<none> diff=0")
+            print("worst_max_diff:  col=<none> diff=0")
+            print("TOP_DRIFT_COLS=")
 
-        print("FAIL imu_normalize_contract")
+        worst_global_mean_diff = float(global_diffs.get("mean_diff", 0.0))
+        worst_global_std_diff = float(global_diffs.get("std_diff", 0.0))
+        print(f"worst_global_mean_diff={worst_global_mean_diff:.6g}")
+        print(f"worst_global_std_diff={worst_global_std_diff:.6g}")
+
+        if args.print_regen_cmd:
+            print(f"REGEN_BASELINE_CMD={regen_cmd}")
+
         raise SystemExit(EXIT_CONTRACT_MISMATCH)
 
     print("PASS imu_normalize_contract")
+
+    if args.print_regen_cmd:
+        print(f"REGEN_BASELINE_CMD={regen_cmd}")
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI entrypoint
