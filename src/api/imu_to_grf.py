@@ -4,6 +4,9 @@ from pathlib import Path
 from typing import Any, Dict
 import subprocess
 from datetime import datetime, timezone
+import sys
+import time
+import resource
 
 import numpy as np
 import torch
@@ -31,6 +34,21 @@ def _get_git_short_commit() -> str:
         return out.decode("utf-8").strip()
     except Exception:  # pragma: no cover - defensive
         return "unknown"
+
+
+def _get_rss_mb() -> float:
+    try:
+        usage = resource.getrusage(resource.RUSAGE_SELF)
+        rss = float(usage.ru_maxrss)
+        if sys.platform.startswith("darwin"):
+            rss_bytes = rss
+        elif sys.platform.startswith("linux"):
+            rss_bytes = rss * 1024.0
+        else:
+            rss_bytes = rss
+        return rss_bytes / (1024.0 * 1024.0)
+    except Exception:  # pragma: no cover - defensive
+        return 0.0
 
 
 def _stats(arr: np.ndarray) -> Dict[str, float]:
@@ -75,12 +93,15 @@ def run_imu_to_grf(
     num_windows: int = 64,
     model: str = "vnext_fz",
     seed: int = 12345,
+    profile: bool = False,
 ) -> Dict[str, Any]:
     """Run deterministic IMU→GRF inference and return a JSON-serializable summary.
 
     This is a thin, stable wrapper around the existing IMU→GRF adapter and
     deterministic inference path used by the non-regression contract.
     """
+
+    t_total_start = time.perf_counter() if profile else 0.0
 
     # Deterministic seeding (mirrors scripts/check_imu_infer_nonregression.py).
     random.seed(seed)
@@ -89,12 +110,17 @@ def run_imu_to_grf(
 
     csv_path = Path(imu_csv)
 
+    if profile:
+        t_build_start = time.perf_counter()
     X = build_grf_input_from_imu_csv(
         csv_path,
         window_len=int(window_len),
         stride=int(stride),
         num_windows=int(num_windows),
     )
+    build_input_ms = 0.0
+    if profile:
+        build_input_ms = (time.perf_counter() - t_build_start) * 1000.0
 
     if X.dtype != np.float32:
         raise ValueError(f"Expected float32 input, got {X.dtype}")
@@ -149,8 +175,13 @@ def run_imu_to_grf(
 
     model_obj = model_obj.cpu().eval()
 
+    if profile:
+        t_forward_start = time.perf_counter()
     with torch.no_grad():
         y = model_obj(torch.from_numpy(X).cpu())
+    forward_ms = 0.0
+    if profile:
+        forward_ms = (time.perf_counter() - t_forward_start) * 1000.0
 
     y_np = y.detach().cpu().numpy()
 
@@ -185,5 +216,15 @@ def run_imu_to_grf(
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         },
     }
+
+    if profile:
+        total_ms = (time.perf_counter() - t_total_start) * 1000.0
+        rss_mb = _get_rss_mb()
+        result["perf"] = {
+            "build_input_ms": float(build_input_ms),
+            "forward_ms": float(forward_ms),
+            "total_ms": float(total_ms),
+            "rss_mb": float(rss_mb),
+        }
 
     return result

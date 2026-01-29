@@ -149,6 +149,14 @@ fi
     exit 20
   fi
 
+  echo "--- running IMU→GRF perf gate ---"
+  if bash scripts/ci_check_imu_grf_perf.sh; then
+    pass "ci_check_imu_grf_perf"
+  else
+    fail "ci_check_imu_grf_perf"
+    exit 22
+  fi
+
 echo "--- summary ---"
 echo "PASS_COUNT=${pass_count}"
 echo "FAIL_COUNT=${fail_count}"
