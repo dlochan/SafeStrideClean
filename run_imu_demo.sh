@@ -13,8 +13,8 @@ fi
 cd "${ROOT}"
 
 echo "=== IMU DEMO ==="
-echo "HEAD=$(git rev-parse --short HEAD)"
-echo "BRANCH=$(git branch --show-current)"
+echo "HEAD="$(git rev-parse --short HEAD)""
+echo "BRANCH="$(git branch --show-current)""
 
 echo "--- imu_schema_smoke ---"
 bash scripts/imu_schema_smoke.sh
