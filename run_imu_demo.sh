@@ -13,8 +13,8 @@ fi
 cd "${ROOT}"
 
 echo "=== IMU DEMO ==="
-echo "HEAD="$(git rev-parse --short HEAD)""
-echo "BRANCH="$(git branch --show-current)""
+echo "HEAD=$(git rev-parse --short HEAD)"
+echo "BRANCH=$(git branch --show-current)"
 
 echo "--- imu_schema_smoke ---"
 bash scripts/imu_schema_smoke.sh
@@ -31,5 +31,9 @@ echo "PASS: ci_check_imu_contract"
 echo "--- imu_ingest_smoke ---"
 bash scripts/imu_ingest_smoke.sh
 echo "PASS: imu_ingest_smoke"
+
+echo "--- imu_to_grf_infer_smoke ---"
+bash scripts/imu_to_grf_infer_smoke.sh
+echo "PASS: imu_to_grf_infer_smoke"
 
 echo "IMU DEMO: PASS"
