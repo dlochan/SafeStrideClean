@@ -16,11 +16,11 @@ import numpy as np
 import pandas as pd
 import torch
 
-_REPO_ROOT = Path(__file__).resolve().parents[0]
+_REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from src.adapters.imu_normalize import normalize_imu_csv
+from src.adapters.imu_normalize import normalize_imu_csv_to_canon_df_with_debug
 from src.adapters.imu_to_grf_input import build_grf_input_from_imu_csv
 from src.vnext.data.imu_schema import get_feature_columns, get_sensor_slices
 
@@ -37,29 +37,53 @@ np.random.seed(seed)
 torch.manual_seed(seed)
 
 fixture = Path("tests/fixtures/imu_messy.csv")
+print(f"MESSY_PATH={fixture}")
 artifacts_dir = Path("artifacts")
 artifacts_dir.mkdir(parents=True, exist_ok=True)
 canon_csv = artifacts_dir / "imu_messy_normalized_canonical.csv"
 
-canon_df = normalize_imu_csv(str(fixture), output_csv_path=str(canon_csv))
+canon_df, debug = normalize_imu_csv_to_canon_df_with_debug(str(fixture))
+canon_df.to_csv(canon_csv, index=False)
+
 feature_cols = get_feature_columns()
-expected_cols = ["time_s"] + feature_cols
-if list(canon_df.columns) != expected_cols:
+if list(canon_df.columns) != feature_cols:
     raise SystemExit(
-        f"Unexpected normalized columns; got {list(canon_df.columns)}, expected {expected_cols}"
+        f"Unexpected normalized columns; got {list(canon_df.columns)}, expected {feature_cols}"
     )
 
-values = canon_df[feature_cols].to_numpy(dtype=np.float32, copy=False)
+values = canon_df.to_numpy(dtype=np.float32, copy=False)
 if values.dtype != np.float32:
     raise SystemExit(f"Expected float32 features, got {values.dtype}")
 if not np.isfinite(values).all():
     raise SystemExit("Non-finite values in normalized features")
 
+raw_cols_n = len(debug.raw_columns)
+canon_cols_n = len(debug.canon_columns)
+used_aliases_n = len(debug.used_aliases)
+dropped_cols_n = len(debug.dropped_columns)
+missing_canon_n = len(debug.missing_canon_columns)
+
+print(f"RAW_COLS_N={raw_cols_n}")
+print(f"CANON_COLS_N={canon_cols_n}")
+print(f"USED_ALIASES_N={used_aliases_n}")
+print(f"DROPPED_COLS_N={dropped_cols_n}")
+print(f"MISSING_CANON_COLS_N={missing_canon_n}")
+
+aliases_example = ",".join(
+    f"{raw}->{canon}" for raw, canon in debug.used_aliases[:5]
+)
+dropped_example = ",".join(debug.dropped_columns[:5])
+
+print(f"USED_ALIASES_EXAMPLE={aliases_example}")
+print(f"DROPPED_COLS_EXAMPLE={dropped_example}")
+
+if missing_canon_n != 0:
+    raise SystemExit("MISSING_CANON_COLS_N != 0")
+
 rows = []
 tags = sorted({name.split("_", 1)[1] for name in feature_cols})
 for i in range(len(canon_df)):
-    t_s = float(canon_df.iloc[i]["time_s"])
-    t_ms = int(round(t_s * 1000.0))
+    t_ms = int(i * 10)
     for tag in tags:
         vals = {}
         for name in feature_cols:

@@ -1,4 +1,6 @@
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -9,7 +11,11 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from src.adapters.imu_normalize import normalize_imu_csv
+from src.adapters.imu_normalize import (
+    NormalizationDebug,
+    normalize_imu_csv_to_canon_df,
+    normalize_imu_csv_to_canon_df_with_debug,
+)
 from src.adapters.imu_to_grf_input import build_grf_input_from_imu_csv
 from src.vnext.data.imu_schema import get_feature_columns
 
@@ -17,27 +23,25 @@ from src.vnext.data.imu_schema import get_feature_columns
 class TestImuNormalizeAdapter(unittest.TestCase):
     def test_normalize_fixture_columns_and_dtypes(self) -> None:
         csv_path = Path("tests/fixtures/imu_messy.csv")
-        df = normalize_imu_csv(str(csv_path))
+        df = normalize_imu_csv_to_canon_df(str(csv_path))
 
         feature_cols = get_feature_columns()
-        expected_cols = ["time_s"] + feature_cols
-        self.assertEqual(list(df.columns), expected_cols)
+        self.assertEqual(list(df.columns), feature_cols)
 
-        values = df[feature_cols].to_numpy(dtype=np.float32, copy=False)
+        values = df.to_numpy(dtype=np.float32, copy=False)
         self.assertEqual(values.dtype, np.float32)
         self.assertTrue(np.isfinite(values).all())
 
     def test_end_to_end_normalize_then_build_input(self) -> None:
         csv_path = Path("tests/fixtures/imu_messy.csv")
-        df = normalize_imu_csv(str(csv_path))
+        df = normalize_imu_csv_to_canon_df(str(csv_path))
 
         feature_cols = get_feature_columns()
         tags = sorted({name.split("_", 1)[1] for name in feature_cols})
 
         rows = []
         for i in range(len(df)):
-            t_s = float(df.iloc[i]["time_s"])
-            t_ms = int(round(t_s * 1000.0))
+            t_ms = int(i * 10)
             for tag in tags:
                 vals = {}
                 for name in feature_cols:
@@ -82,6 +86,63 @@ class TestImuNormalizeAdapter(unittest.TestCase):
         self.assertEqual(X.shape[0], 64)
         self.assertEqual(X.shape[1], 256)
         self.assertEqual(X.shape[2], len(feature_cols))
+
+    def test_alias_resolution_and_duplicate_prefer_first(self) -> None:
+        csv_path = Path("tests/fixtures/imu_messy.csv")
+
+        raw_df = pd.read_csv(csv_path)
+        df, debug = normalize_imu_csv_to_canon_df_with_debug(str(csv_path))
+
+        feature_cols = get_feature_columns()
+        self.assertEqual(list(df.columns), feature_cols)
+
+        # Thigh X should come from the primary alias column, not the secondary
+        primary_alias = "Ax Thigh"
+        secondary_alias = "Accel_X thigh"
+        canon_col = "axx_thigh"
+
+        self.assertIn(primary_alias, raw_df.columns)
+        self.assertIn(secondary_alias, raw_df.columns)
+        self.assertIn(canon_col, df.columns)
+
+        raw_primary = raw_df[primary_alias].to_numpy(dtype=np.float32)
+        raw_secondary = raw_df[secondary_alias].to_numpy(dtype=np.float32)
+        canon_vals = df[canon_col].to_numpy(dtype=np.float32)
+
+        # The canonical channel should match the primary alias exactly
+        self.assertTrue(np.allclose(canon_vals, raw_primary))
+        # And differ from the secondary alias (so we know which one was chosen)
+        self.assertFalse(np.allclose(canon_vals, raw_secondary))
+
+        # Debug payload should record both aliases being used for the same canon
+        self.assertIsInstance(debug, NormalizationDebug)
+        self.assertIn((primary_alias, canon_col), debug.used_aliases)
+        self.assertIn((secondary_alias, canon_col), debug.used_aliases)
+
+    def test_missing_canon_hard_fails(self) -> None:
+        # Build a tiny CSV that is missing exactly one canonical feature
+        # (gxz_shank) while providing aliases for all others.
+        feature_cols = get_feature_columns()
+        self.assertIn("gxz_shank", feature_cols)
+
+        csv_text = """time_ms,Ax Thigh,Ay-Thigh,Az thigh   ,Gx Thigh,GYRO_Y thigh   ,gyro_z_thigh,ax_shank,accel_y_shank,Az-Shank,Gx Shank,gyro_y_shank
+0,0.10,0.20,0.30,0.01,0.02,0.03,0.40,0.50,0.60,0.04,0.05
+10,0.11,0.21,0.31,0.011,0.021,0.031,0.41,0.51,0.61,0.041,0.051
+"""
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as tmp:
+            tmp.write(csv_text)
+            tmp_path = tmp.name
+
+        try:
+            with self.assertRaises(ValueError) as ctx:
+                normalize_imu_csv_to_canon_df(tmp_path)
+            msg = str(ctx.exception)
+            self.assertIn("gxz_shank", msg)
+        finally:
+            os.remove(tmp_path)
 
 
 if __name__ == "__main__":
