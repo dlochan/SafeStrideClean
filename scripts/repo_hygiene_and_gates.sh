@@ -133,6 +133,14 @@ fi
     exit 16
   fi
 
+  echo "--- running IMU -> GRF inference contract ---"
+  if bash scripts/ci_check_imu_infer_contract.sh; then
+    pass "ci_check_imu_infer_contract"
+  else
+    fail "ci_check_imu_infer_contract"
+    exit 18
+  fi
+
 echo "--- summary ---"
 echo "PASS_COUNT=${pass_count}"
 echo "FAIL_COUNT=${fail_count}"

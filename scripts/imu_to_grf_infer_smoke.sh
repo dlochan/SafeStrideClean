@@ -12,6 +12,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import random
 
 _REPO_ROOT = Path(__file__).resolve().parents[0]
 if str(_REPO_ROOT) not in sys.path:
@@ -26,6 +27,11 @@ try:
 except Exception:  # pragma: no cover - defensive
     VNextFzModel = None  # type: ignore
     _HAVE_VNEXT_MODEL = False
+
+seed = 12345
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
 
 X = build_grf_input_from_imu_csv(
     Path("tests/fixtures/imu_sample.csv"),
