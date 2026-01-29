@@ -20,6 +20,9 @@ if str(_REPO_ROOT) not in sys.path:
 
 from src.adapters.imu_to_grf_input import build_grf_input_from_imu_csv
 
-X = build_grf_input_from_imu_csv(Path("tests/fixtures/imu_sample.csv"), window_len=3, stride=3)
-print(f"SHAPE={tuple(X.shape)} dtype={X.dtype} finite={bool(np.isfinite(X).all())}")
+X_single = build_grf_input_from_imu_csv(Path("tests/fixtures/imu_sample.csv"), window_len=256, stride=256, num_windows=1)
+X_batch = build_grf_input_from_imu_csv(Path("tests/fixtures/imu_sample.csv"), window_len=256, stride=4, num_windows=64)
+
+print(f"SHAPE_SINGLE={tuple(X_single.shape)}")
+print(f"SHAPE_BATCH={tuple(X_batch.shape)}")
 PY

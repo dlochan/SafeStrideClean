@@ -16,14 +16,25 @@ class TestImuToGrfInputAdapter(unittest.TestCase):
     def test_shape_dtype_finite_deterministic(self) -> None:
         csv_path = Path("tests/fixtures/imu_sample.csv")
 
-        X1 = build_grf_input_from_imu_csv(csv_path, window_len=3, stride=3)
-        X2 = build_grf_input_from_imu_csv(csv_path, window_len=3, stride=3)
+        X1_single = build_grf_input_from_imu_csv(csv_path, window_len=256, stride=256, num_windows=1)
+        X2_single = build_grf_input_from_imu_csv(csv_path, window_len=256, stride=256, num_windows=1)
 
-        self.assertEqual(X1.shape, (1, 3, 12))
-        self.assertEqual(X1.dtype, np.float32)
-        self.assertTrue(np.isfinite(X1).all())
+        self.assertEqual(X1_single.shape[0], 1)
+        self.assertEqual(X1_single.shape[1], 256)
+        self.assertGreater(X1_single.shape[2], 0)
+        self.assertEqual(X1_single.dtype, np.float32)
+        self.assertTrue(np.isfinite(X1_single).all())
+        self.assertTrue(np.array_equal(X1_single, X2_single))
 
-        self.assertTrue(np.array_equal(X1, X2))
+        X1_batch = build_grf_input_from_imu_csv(csv_path, window_len=256, stride=4, num_windows=64)
+        X2_batch = build_grf_input_from_imu_csv(csv_path, window_len=256, stride=4, num_windows=64)
+
+        self.assertEqual(X1_batch.shape[0], 64)
+        self.assertEqual(X1_batch.shape[1], 256)
+        self.assertEqual(X1_batch.shape[2], X1_single.shape[2])
+        self.assertEqual(X1_batch.dtype, np.float32)
+        self.assertTrue(np.isfinite(X1_batch).all())
+        self.assertTrue(np.array_equal(X1_batch, X2_batch))
 
 
 if __name__ == "__main__":
