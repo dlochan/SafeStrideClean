@@ -157,6 +157,14 @@ fi
     exit 22
   fi
 
+  echo "--- running PSU bundle check ---"
+  if bash scripts/ci_check_psu_bundle.sh; then
+    pass "ci_check_psu_bundle"
+  else
+    fail "ci_check_psu_bundle"
+    exit 24
+  fi
+
 echo "--- summary ---"
 echo "PASS_COUNT=${pass_count}"
 echo "FAIL_COUNT=${fail_count}"
