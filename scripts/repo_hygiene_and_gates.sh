@@ -109,6 +109,14 @@ fi
     exit 13
   fi
 
+  echo "--- running IMU ingest smoke ---"
+  if bash scripts/imu_ingest_smoke.sh; then
+    pass "imu_ingest_smoke"
+  else
+    fail "imu_ingest_smoke"
+    exit 14
+  fi
+
 echo "--- summary ---"
 echo "PASS_COUNT=${pass_count}"
 echo "FAIL_COUNT=${fail_count}"
