@@ -9,7 +9,8 @@ if [[ "${IMU_NORMALIZE_CONTRACT_SELFTEST:-0}" == "1" ]]; then
     --mode check \
     --baseline tests/baselines/imu_normalize_contract_baseline.json \
     --self_test \
-    --self_test_case all
+    --self_test_case all \
+    --print_regen_cmd
   exit $?
 fi
 

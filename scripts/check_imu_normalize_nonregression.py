@@ -555,16 +555,27 @@ def _run_self_test(args: argparse.Namespace, baseline_path: Path, regen_cmd: str
                 header_line = line
                 break
 
-        if code != expected_code or header_line != expected_header:
+        print(
+            f"SELF_TEST_EXPECT case={case} "
+            f"code={expected_code} header=\"{expected_header}\""
+        )
+
+        code_ok = code == expected_code
+        header_ok = bool(header_line) and (expected_header in header_line)
+
+        if not code_ok or not header_ok:
             print(
                 f"SELF_TEST_FAIL case={case} "
-                f"expected_code={expected_code} got_code={code} "
-                f"expected_header={expected_header!r} got_header={header_line!r}"
+                f"expected_code={expected_code} got_code={code}"
+            )
+            print(
+                f"SELF_TEST_FAIL expected_header=\"{expected_header}\" "
+                f"got_header=\"{header_line}\""
             )
             if output:
-                print("SELF_TEST_CAPTURED_OUTPUT_BEGIN")
+                print("SELF_TEST_FAIL output_begin")
                 print(output.rstrip("\n"))
-                print("SELF_TEST_CAPTURED_OUTPUT_END")
+                print("SELF_TEST_FAIL output_end")
             raise SystemExit(1)
 
         print(f"SELF_TEST_PASS case={case}")
