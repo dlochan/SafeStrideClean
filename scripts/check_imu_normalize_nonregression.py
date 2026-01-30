@@ -581,6 +581,8 @@ def _run_self_test(args: argparse.Namespace, baseline_path: Path, regen_cmd: str
         print(f"SELF_TEST_PASS case={case}")
 
     # All requested cases passed.
+    if args.print_regen_cmd:
+        print(f"REGEN_BASELINE_CMD={regen_cmd}")
     raise SystemExit(0)
 
 
