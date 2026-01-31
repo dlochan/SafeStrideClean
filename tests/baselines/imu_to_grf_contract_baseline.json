@@ -9,7 +9,9 @@
   "fixture": "tests/fixtures/imu_sample.csv",
   "global_mean": -0.0874273311055731,
   "global_std": 0.008204678866325059,
+  "mean_abs": 0.08762274167384021,
   "output_dtype": "float32",
+  "output_fingerprint": "2ff716d1f4c560464ba5be03f914bf3028b42afc059a528d84c695da77fbd1e4",
   "output_flat": [
     -0.039016928523778915,
     -0.041910890489816666,
@@ -16401,6 +16403,8 @@
     256,
     1
   ],
+  "p50": -0.08824943751096725,
+  "p95": -0.08824943751096725,
   "per_channel_stats": {
     "0": {
       "max": 0.025012552738189697,
@@ -16409,7 +16413,7 @@
       "std": 0.008204678866325059
     }
   },
-  "schema_version": "imu_to_grf_contract_v1",
+  "schema_version": "imu_to_grf_contract_v2",
   "shape": [
     64,
     256,

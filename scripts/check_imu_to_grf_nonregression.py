@@ -7,18 +7,23 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
+import hashlib
 import numpy as np
 import torch
 import random
 
-
-SCHEMA_VERSION = "imu_to_grf_contract_v1"
+SCHEMA_VERSION = "imu_to_grf_contract_v2"
 FIXTURE_REL_PATH = "tests/fixtures/imu_sample.csv"
 WINDOW_LEN = 256
 STRIDE = 1
 NUM_WINDOWS = 64
 
 ABS_TOL = 1e-6
+
+REGEN_BASELINE_CMD = (
+    "python scripts/check_imu_to_grf_nonregression.py "
+    "--mode compute --baseline tests/baselines/imu_to_grf_contract_baseline.json"
+)
 
 EXIT_CONTRACT_MISMATCH = 41
 EXIT_NONFINITE = 42
@@ -163,17 +168,19 @@ def _compute_contract() -> Dict[str, Any]:
     shape = [int(d) for d in y.shape]
     dtype = str(np.dtype(y.dtype))
 
-    flat64 = y.reshape(-1).astype(np.float64)
-    total = int(flat64.size)
+    flat32 = y.reshape(-1).astype(np.float32)
+    total = int(flat32.size)
     if total == 0:
         finite_fraction = 1.0
     else:
-        finite_mask = np.isfinite(flat64)
+        finite_mask = np.isfinite(flat32)
         finite_count = int(finite_mask.sum())
         finite_fraction = float(finite_count) / float(total)
 
     if finite_fraction != 1.0:
         raise NonFiniteError(finite_fraction)
+
+    flat64 = flat32.astype(np.float64)
 
     # Global aggregate stats over the entire output tensor.
     global_mean = float(flat64.mean()) if flat64.size else 0.0
@@ -188,6 +195,12 @@ def _compute_contract() -> Dict[str, Any]:
         mean_abs = 0.0
         p50 = 0.0
         p95 = 0.0
+
+    if flat32.size:
+        fp_payload = ",".join(f"{float(v):.6f}" for v in flat32)
+        output_fingerprint = hashlib.sha256(fp_payload.encode("utf-8")).hexdigest()
+    else:
+        output_fingerprint = hashlib.sha256(b"").hexdigest()
 
     b, t, c = y.shape
     per_channel_stats: Dict[str, Dict[str, float]] = {}
@@ -211,6 +224,10 @@ def _compute_contract() -> Dict[str, Any]:
         "finite_fraction": float(finite_fraction),
         "global_mean": float(global_mean),
         "global_std": float(global_std),
+        "mean_abs": float(mean_abs),
+        "p50": float(p50),
+        "p95": float(p95),
+        "output_fingerprint": output_fingerprint,
         "fingerprint": {
             "mean_abs": float(mean_abs),
             "p50": float(p50),
@@ -244,8 +261,8 @@ def _handle_nonfinite(exc: NonFiniteError, regen_cmd: str, print_regen_cmd: bool
     finite_fraction = float(exc.finite_fraction)
     print("FAIL imu_to_grf_contract: non-finite values")
     print(f"finite_fraction={finite_fraction:.9f}")
-    if print_regen_cmd:
-        print(f"REGEN_BASELINE_CMD={regen_cmd}")
+    # Always print regen hint on failure.
+    print(f"REGEN_BASELINE_CMD={regen_cmd}")
     return EXIT_NONFINITE
 
 
@@ -271,8 +288,7 @@ def _run_stats_check(
         print(f"current_shape={curr_shape}")
         print(f"baseline_dtype={base_dtype}")
         print(f"current_dtype={curr_dtype}")
-        if print_regen_cmd:
-            print(f"REGEN_BASELINE_CMD={regen_cmd}")
+        print(f"REGEN_BASELINE_CMD={regen_cmd}")
         return EXIT_SHAPE_DTYPE_MISMATCH
 
     base_finite = float(baseline.get("finite_fraction", 0.0))
@@ -281,77 +297,26 @@ def _run_stats_check(
         print("FAIL imu_to_grf_contract: non-finite values")
         print(f"baseline_finite_fraction={base_finite:.9f}")
         print(f"current_finite_fraction={curr_finite:.9f}")
-        if print_regen_cmd:
-            print(f"REGEN_BASELINE_CMD={regen_cmd}")
+        print(f"REGEN_BASELINE_CMD={regen_cmd}")
         return EXIT_NONFINITE
     # Global stats and fingerprint comparisons.
     base_mean = float(baseline.get("global_mean", 0.0))
     curr_mean = float(current.get("global_mean", 0.0))
-    mean_diff = abs(curr_mean - base_mean)
 
     base_std = float(baseline.get("global_std", 0.0))
     curr_std = float(current.get("global_std", 0.0))
-    std_diff = abs(curr_std - base_std)
 
-    base_fp = baseline.get("fingerprint", {}) or {}
-    curr_fp = current.get("fingerprint", {}) or {}
+    base_mean_abs = float(baseline.get("mean_abs", 0.0))
+    curr_mean_abs = float(current.get("mean_abs", 0.0))
 
-    def _fp_val(d: Dict[str, Any], key: str) -> float:
-        return float(d.get(key, 0.0))
+    base_p50 = float(baseline.get("p50", 0.0))
+    curr_p50 = float(current.get("p50", 0.0))
 
-    base_mean_abs = _fp_val(base_fp, "mean_abs")
-    curr_mean_abs = _fp_val(curr_fp, "mean_abs")
-    diff_mean_abs = abs(curr_mean_abs - base_mean_abs)
+    base_p95 = float(baseline.get("p95", 0.0))
+    curr_p95 = float(current.get("p95", 0.0))
 
-    base_p50 = _fp_val(base_fp, "p50")
-    curr_p50 = _fp_val(curr_fp, "p50")
-    diff_p50 = abs(curr_p50 - base_p50)
-
-    base_p95 = _fp_val(base_fp, "p95")
-    curr_p95 = _fp_val(curr_fp, "p95")
-    diff_p95 = abs(curr_p95 - base_p95)
-
-    base_stats = baseline.get("per_channel_stats", {}) or {}
-    curr_stats = current.get("per_channel_stats", {}) or {}
-
-    chan_diffs: List[Dict[str, Any]] = []
-    ok = True
-
-    if (
-        mean_diff > ABS_TOL
-        or std_diff > ABS_TOL
-        or diff_mean_abs > ABS_TOL
-        or diff_p50 > ABS_TOL
-        or diff_p95 > ABS_TOL
-    ):
-        ok = False
-
-    chan_keys = sorted(set(base_stats.keys()) | set(curr_stats.keys()))
-    for ch in chan_keys:
-        b_stats = base_stats.get(ch)
-        c_stats = curr_stats.get(ch)
-        if not isinstance(b_stats, dict) or not isinstance(c_stats, dict):
-            ok = False
-            continue
-        min_diff = abs(float(c_stats.get("min", 0.0)) - float(b_stats.get("min", 0.0)))
-        max_diff = abs(float(c_stats.get("max", 0.0)) - float(b_stats.get("max", 0.0)))
-        mean_cdiff = abs(float(c_stats.get("mean", 0.0)) - float(b_stats.get("mean", 0.0)))
-        std_cdiff = abs(float(c_stats.get("std", 0.0)) - float(b_stats.get("std", 0.0)))
-        diffs = {
-            "channel": ch,
-            "min_diff": min_diff,
-            "max_diff": max_diff,
-            "mean_diff": mean_cdiff,
-            "std_diff": std_cdiff,
-        }
-        if (
-            min_diff > ABS_TOL
-            or max_diff > ABS_TOL
-            or mean_cdiff > ABS_TOL
-            or std_cdiff > ABS_TOL
-        ):
-            ok = False
-            chan_diffs.append(diffs)
+    base_fp_str = str(baseline.get("output_fingerprint", ""))
+    curr_fp_str = str(current.get("output_fingerprint", ""))
 
     base_flat = np.asarray(baseline.get("output_flat", []), dtype=np.float64)
     curr_flat = np.asarray(current.get("output_flat", []), dtype=np.float64)
@@ -360,8 +325,7 @@ def _run_stats_check(
         print("FAIL imu_to_grf_contract: shape/dtype mismatch")
         print(f"baseline_output_flat_shape={base_flat.shape}")
         print(f"current_output_flat_shape={curr_flat.shape}")
-        if print_regen_cmd:
-            print(f"REGEN_BASELINE_CMD={regen_cmd}")
+        print(f"REGEN_BASELINE_CMD={regen_cmd}")
         return EXIT_SHAPE_DTYPE_MISMATCH
 
     if base_flat.size == 0:
@@ -369,9 +333,6 @@ def _run_stats_check(
     else:
         diff = curr_flat - base_flat
         rmse = float(np.sqrt(np.mean(diff * diff)))
-
-    if rmse > ABS_TOL:
-        ok = False
 
     # Summary line for current run with key metrics and RMSE vs baseline.
     print(
@@ -387,53 +348,68 @@ def _run_stats_check(
         f"global_rmse={rmse:.6g}"
     )
 
-    if ok:
-        print(f"global_rmse={rmse:.6g}")
-        print("PASS imu_to_grf_contract")
-        if print_regen_cmd:
-            print(f"REGEN_BASELINE_CMD={regen_cmd}")
-        return 0
+    # Anti-degenerate invariants on the current output.
+    invariant_violation = False
+    if curr_std < 1e-6:
+        invariant_violation = True
+    if curr_p95 < curr_p50:
+        invariant_violation = True
+    if curr_std < 1e-4:
+        if abs(curr_p95 - curr_p50) >= 1e-6 or abs(curr_mean_abs) >= 1e-3:
+            invariant_violation = True
 
-    print("FAIL imu_to_grf_contract: stats drift")
-
-    if chan_diffs:
-        worst_mean = max(chan_diffs, key=lambda d: d.get("mean_diff", 0.0))
-        worst_std = max(chan_diffs, key=lambda d: d.get("std_diff", 0.0))
-        worst_min = max(chan_diffs, key=lambda d: d.get("min_diff", 0.0))
-        worst_max = max(chan_diffs, key=lambda d: d.get("max_diff", 0.0))
-
+    if invariant_violation:
+        print("FAIL imu_to_grf_contract: invariant violation")
         print(
-            "worst_mean_diff: channel="
-            f"{worst_mean.get('channel', '<unknown>')} diff="
-            f"{float(worst_mean.get('mean_diff', 0.0)):.6g}"
+            "INVARIANTS current: "
+            f"finite_fraction={curr_finite:.9f} "
+            f"global_std={curr_std:.6g} "
+            f"mean_abs={curr_mean_abs:.6g} "
+            f"p50={curr_p50:.6g} "
+            f"p95={curr_p95:.6g}"
         )
-        print(
-            "worst_std_diff:  channel="
-            f"{worst_std.get('channel', '<unknown>')} diff="
-            f"{float(worst_std.get('std_diff', 0.0)):.6g}"
-        )
-        print(
-            "worst_min_diff:  channel="
-            f"{worst_min.get('channel', '<unknown>')} diff="
-            f"{float(worst_min.get('min_diff', 0.0)):.6g}"
-        )
-        print(
-            "worst_max_diff:  channel="
-            f"{worst_max.get('channel', '<unknown>')} diff="
-            f"{float(worst_max.get('max_diff', 0.0)):.6g}"
-        )
-    else:
-        print("worst_mean_diff: channel=<none> diff=0")
-        print("worst_std_diff:  channel=<none> diff=0")
-        print("worst_min_diff:  channel=<none> diff=0")
-        print("worst_max_diff:  channel=<none> diff=0")
+        print(f"REGEN_BASELINE_CMD={regen_cmd}")
+        return EXIT_CONTRACT_MISMATCH
 
-    print(f"global_rmse={rmse:.6g}")
+    # Fingerprint equality check.
+    if base_fp_str != curr_fp_str:
+        print("FAIL imu_to_grf_contract: fingerprint mismatch")
+        print(f"FINGERPRINT baseline={base_fp_str}")
+        print(f"FINGERPRINT current={curr_fp_str}")
+        print(f"REGEN_BASELINE_CMD={regen_cmd}")
+        return EXIT_CONTRACT_MISMATCH
 
+    # Stats drift checks with tight absolute tolerances.
+    drift_records = []
+
+    def _check_stat(name: str, base_val: float, curr_val: float) -> None:
+        abs_diff = abs(curr_val - base_val)
+        if abs_diff > ABS_TOL:
+            drift_records.append((name, base_val, curr_val, abs_diff))
+
+    _check_stat("global_mean", base_mean, curr_mean)
+    _check_stat("global_std", base_std, curr_std)
+    _check_stat("mean_abs", base_mean_abs, curr_mean_abs)
+    _check_stat("p50", base_p50, curr_p50)
+    _check_stat("p95", base_p95, curr_p95)
+
+    if drift_records:
+        print("FAIL imu_to_grf_contract: stats drift")
+        for name, base_val, curr_val, abs_diff in drift_records:
+            print(
+                f"DRIFT {name} "
+                f"baseline={base_val:.9g} "
+                f"current={curr_val:.9g} "
+                f"abs_diff={abs_diff:.3g} "
+                f"tol={ABS_TOL}"
+            )
+        print(f"REGEN_BASELINE_CMD={regen_cmd}")
+        return EXIT_CONTRACT_MISMATCH
+
+    print("PASS imu_to_grf_contract")
     if print_regen_cmd:
         print(f"REGEN_BASELINE_CMD={regen_cmd}")
-
-    return EXIT_CONTRACT_MISMATCH
+    return 0
 
 
 def _parse_args(argv: List[str]) -> argparse.Namespace:
@@ -469,11 +445,7 @@ def main(argv: List[str]) -> None:
     args = _parse_args(argv)
     baseline_path = Path(args.baseline)
 
-    regen_cmd = (
-        "python scripts/check_imu_to_grf_nonregression.py "
-        "--mode compute --baseline "
-        f"{baseline_path}"
-    )
+    regen_cmd = REGEN_BASELINE_CMD
 
     if args.mode == "compute":
         contract = _compute_contract()
