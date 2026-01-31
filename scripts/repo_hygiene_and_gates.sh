@@ -149,6 +149,14 @@ fi
     exit 16
   fi
 
+  echo "--- running IMU -> GRF inference non-regression contract ---"
+  if bash scripts/ci_check_imu_to_grf_contract.sh; then
+    pass "ci_check_imu_to_grf_contract"
+  else
+    fail "ci_check_imu_to_grf_contract"
+    exit 28
+  fi
+
   echo "--- running IMU -> GRF inference contract ---"
   if bash scripts/ci_check_imu_infer_contract.sh; then
     pass "ci_check_imu_infer_contract"
