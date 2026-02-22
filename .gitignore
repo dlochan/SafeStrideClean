@@ -78,3 +78,4 @@ coverage.xml
 dist/
 build/
 *.egg-info/
+SafeStride Training Outputs/
