@@ -165,6 +165,14 @@ fi
     exit 52
   fi
 
+  echo "--- running knee metrics 2D non-regression contract ---"
+  if bash scripts/ci_check_knee_metrics_2d_contract.sh; then
+    pass "ci_check_knee_metrics_2d_contract"
+  else
+    fail "ci_check_knee_metrics_2d_contract"
+    exit 53
+  fi
+
   echo "--- running IMU -> GRF inference contract ---"
   if bash scripts/ci_check_imu_infer_contract.sh; then
     pass "ci_check_imu_infer_contract"

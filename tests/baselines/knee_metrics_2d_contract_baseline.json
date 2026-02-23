@@ -1,0 +1,102 @@
+{
+  "complementary_filter": {
+    "alpha": 0.98,
+    "sensor_tag": "shank"
+  },
+  "fixture": "tests/fixtures/imu_sample.csv",
+  "fs_hz": 200.0,
+  "fz_denorm_run_dir": "/Volumes/Extreme SSD/safestride_clean/data/vnext_gt_real_out/vnext_fz/20260113-161742_0f9d0c7e",
+  "fz_units": {
+    "body_mass_kg": 70.0,
+    "bw_n": 686.7,
+    "g": 9.81,
+    "model_best": {
+      "path": "/Volumes/Extreme SSD/safestride_clean/data/vnext_gt_real_out/vnext_fz/20260113-161742_0f9d0c7e/model_best.pt",
+      "sha256": "1226532c63bf82ae20e02e68a7498c5ded6968ef7d17bcb8480908a68f1fcf74"
+    },
+    "run_dir": "/Volumes/Extreme SSD/safestride_clean/data/vnext_gt_real_out/vnext_fz/20260113-161742_0f9d0c7e",
+    "target_norm": {
+      "center": [
+        0.6486210227012634
+      ],
+      "kind": "zscore",
+      "scale": [
+        0.7054346799850464
+      ]
+    },
+    "target_norm_json_sha256": "514c235544e5e1191f5361324a2979917281aff0cdd828cfed61cb9e65d67b54",
+    "target_norm_path": "/Volumes/Extreme SSD/safestride_clean/data/vnext_gt_real_out/vnext_fz/20260113-161742_0f9d0c7e/target_norm.json",
+    "units": "newtons"
+  },
+  "gates": {
+    "median_peak_fz_n_per_kg": 11.146719927793068,
+    "median_peak_fz_n_per_kg_gt": 3.0,
+    "median_peak_knee_moment_nm_per_kg": 0.1687764674425125,
+    "median_peak_knee_moment_nm_per_kg_gt": 0.05
+  },
+  "imu_to_grf_model": {
+    "kind": "vnext_fz",
+    "sensor_slices": {
+      "shank": [
+        6,
+        12
+      ],
+      "thigh": [
+        0,
+        6
+      ]
+    }
+  },
+  "metrics_matrix": {
+    "dtype": "float32",
+    "fingerprint": "554c9aa89b409a58fa5e74a8760cf2d8f013ad9521fe197205f9d1b69fbbd846",
+    "finite_fraction": 1.0,
+    "shape": [
+      64,
+      6
+    ]
+  },
+  "num_windows": 64,
+  "schema_version": "knee_metrics_2d_contract_v1",
+  "stride": 128,
+  "summary": {
+    "fs_hz": 200.0,
+    "impulse_fz_ns_per_kg": {
+      "cv": 1.413259498721503e-16,
+      "iqr": 0.0,
+      "median": 12.569219177419859
+    },
+    "loading_rate_n_per_kg_s": {
+      "cv": 0.0,
+      "iqr": 0.0,
+      "median": 261.54049994766666
+    },
+    "moment_impulse_nms_per_kg": {
+      "cv": 1.5320893180011444e-16,
+      "iqr": 0.0,
+      "median": 0.1811616025865078
+    },
+    "n_windows": 64,
+    "peak_fz_n_per_kg": {
+      "cv": 1.593613951823575e-16,
+      "iqr": 0.0,
+      "median": 11.146719927793068
+    },
+    "peak_knee_moment_nm_per_kg": {
+      "cv": 0.0,
+      "iqr": 0.0,
+      "median": 0.1687764674425125
+    },
+    "stance_cfg": {
+      "fz_threshold_n": 50.0,
+      "g": 9.81,
+      "min_stance_duration_s": 0.2
+    },
+    "time_to_peak_moment_s": {
+      "cv": 0.0,
+      "iqr": 0.0,
+      "median": 1.2750000000000001
+    }
+  },
+  "window_len": 256
+}
