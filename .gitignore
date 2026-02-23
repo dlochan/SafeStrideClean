@@ -22,7 +22,7 @@ __pycache__/
 *.pyc
 
 # Data and large stuff
-/data/
+/data/*
 datasets/
 logs/
 *.log
@@ -41,6 +41,13 @@ release/
 # vNext outputs
 data/vnext_gt_real_out/
 data/vnext_gt_smoke_out/
+!data/vnext_gt_real_out/
+data/vnext_gt_real_out/*
+!data/vnext_gt_real_out/vnext_fz/
+data/vnext_gt_real_out/vnext_fz/*
+!data/vnext_gt_real_out/vnext_fz/20260113-161742_0f9d0c7e/
+data/vnext_gt_real_out/vnext_fz/20260113-161742_0f9d0c7e/*
+!data/vnext_gt_real_out/vnext_fz/20260113-161742_0f9d0c7e/target_norm.json
 
 # Local scratch helpers
 tmp_*.sh

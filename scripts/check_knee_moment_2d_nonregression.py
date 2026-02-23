@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 import hashlib
 import json
 import random
@@ -23,6 +24,8 @@ BODY_MASS_KG = 70.0
 L_SHANK_M = 0.40
 
 ABS_TOL = 1e-6
+
+FZ_DENORM_RUN_DIR_REL = "data/vnext_gt_real_out/vnext_fz/20260113-161742_0f9d0c7e"
 
 REGEN_BASELINE_CMD = (
     "python scripts/check_knee_moment_2d_nonregression.py "
@@ -70,16 +73,19 @@ def _sha256_fingerprint(x: np.ndarray) -> str:
     return hashlib.sha256(b"").hexdigest()
 
 
-def _build_model_and_predict_fz_bw(X: np.ndarray, feature_cols: List[str]) -> np.ndarray:
+def _build_model_and_predict_fz_bw(X: np.ndarray, feature_cols: List[str]) -> Tuple[np.ndarray, Dict[str, Any]]:
     from src.vnext.data.imu_schema import get_sensor_slices  # type: ignore
 
     sensor_slices = get_sensor_slices(feature_cols)
     C_canon = int(X.shape[2])
 
+    model_kind = "unknown"
+
     try:
         from src.vnext.models.vnext_fz import VNextFzModel  # type: ignore
 
         model_obj: Any = VNextFzModel(in_channels=C_canon, sensor_slices=sensor_slices)
+        model_kind = "vnext_fz"
     except Exception:
         model_obj = None
 
@@ -101,11 +107,13 @@ def _build_model_and_predict_fz_bw(X: np.ndarray, feature_cols: List[str]) -> np
                 return y_flat.reshape(b, t, 1)
 
         model_obj = _TinyGRFModel(in_channels=C_canon)
+        model_kind = "tiny_fallback"
 
     model_obj = model_obj.cpu().eval()
     with torch.no_grad():
         y = model_obj(torch.from_numpy(np.asarray(X, dtype=np.float32)).cpu())
-    return y.detach().cpu().numpy().astype(np.float32, copy=False)
+    y_np = y.detach().cpu().numpy().astype(np.float32, copy=False)
+    return y_np, {"kind": model_kind, "sensor_slices": {k: [int(v.start), int(v.stop)] for k, v in sensor_slices.items()}}
 
 
 def _compute_outputs(*, seed: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -119,6 +127,7 @@ def _compute_outputs(*, seed: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         complementary_filter_pitch,
         extract_sensor_accel_gyro_from_windows,
     )
+    from src.vnext.biomech.fz_units import to_newtons  # type: ignore
     from src.vnext.biomech.knee_moment_2d import KneeMoment2DConfig, estimate_knee_moment_2d  # type: ignore
     from src.vnext.biomech.knee_moment_artifacts import write_knee_moment_2d_artifacts  # type: ignore
 
@@ -145,12 +154,17 @@ def _compute_outputs(*, seed: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     if not np.isfinite(X).all():
         raise SystemExit("Non-finite values in GRF input tensor")
 
-    y_fz_bw_btl = _build_model_and_predict_fz_bw(X, list(feature_cols))
+    y_fz_bw_btl, grf_model_prov = _build_model_and_predict_fz_bw(X, list(feature_cols))
     if y_fz_bw_btl.shape != (int(NUM_WINDOWS), int(WINDOW_LEN), 1):
         raise SystemExit(f"Unexpected Fz output shape: {tuple(y_fz_bw_btl.shape)}")
 
-    fz_bw_bt = y_fz_bw_btl[:, :, 0].astype(np.float64, copy=False)
-    fz_n_bt = fz_bw_bt * float(BODY_MASS_KG) * 9.81
+    fz_n_bt, fz_prov = to_newtons(
+        y_fz_bw_btl[:, :, 0],
+        body_mass_kg=float(BODY_MASS_KG),
+        g=9.81,
+        run_dir=_repo_root() / FZ_DENORM_RUN_DIR_REL,
+    )
+    fz_n_bt = np.asarray(fz_n_bt, dtype=np.float32)
 
     a_btc, g_btc = extract_sensor_accel_gyro_from_windows(
         X,
@@ -179,17 +193,40 @@ def _compute_outputs(*, seed: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         cfg=km_cfg,
     )
 
+    res.metadata["complementary_filter"] = {
+        "alpha": float(cf_cfg.alpha),
+        "mapping": {
+            "accel_cols": list(CANONICAL_VNEXT_IMU_MAPPING.accel_cols),
+            "gyro_cols": list(CANONICAL_VNEXT_IMU_MAPPING.gyro_cols),
+        },
+        "sensor_tag": "shank",
+    }
+    res.metadata["imu_to_grf_model"] = dict(grf_model_prov)
+    res.metadata["fz_units"] = dict(fz_prov)
+    res.metadata["fz_denorm_source"] = str((_repo_root() / FZ_DENORM_RUN_DIR_REL) / "target_norm.json")
+
+    res32 = replace(
+        res,
+        moment=np.asarray(res.moment, dtype=np.float32),
+        moment_filtered=np.asarray(res.moment_filtered, dtype=np.float32),
+        theta=np.asarray(res.theta, dtype=np.float32),
+        theta_filtered=np.asarray(res.theta_filtered, dtype=np.float32),
+        omega=np.asarray(res.omega, dtype=np.float32),
+        alpha=np.asarray(res.alpha, dtype=np.float32),
+        terms={k: np.asarray(v, dtype=np.float32) for k, v in res.terms.items()},
+    )
+
     out_dir = _repo_root() / "artifacts" / "knee_moment_2d"
     write_knee_moment_2d_artifacts(
         out_dir=out_dir,
         run_id="contract",
         theta_shank_rad=theta_bt,
         fz_n=fz_n_bt,
-        result=res,
+        result=res32,
         overwrite=True,
     )
 
-    return theta_bt, fz_n_bt, np.asarray(res.moment_filtered, dtype=np.float64)
+    return theta_bt, fz_n_bt, np.asarray(res.moment_filtered, dtype=np.float32)
 
 
 def _compute_contract() -> Dict[str, Any]:
@@ -204,7 +241,7 @@ def _compute_contract() -> Dict[str, Any]:
     peak_abs = float(np.nanmax(np.abs(moment_bt)))
     if not np.isfinite(peak_abs):
         raise SystemExit(EXIT_MAGNITUDE_BOUNDS)
-    if peak_abs > 3.0:
+    if peak_abs < 0.05 or peak_abs > 3.0:
         raise SystemExit(EXIT_MAGNITUDE_BOUNDS)
 
     finite_fraction = _finite_fraction(moment_bt)
@@ -366,6 +403,12 @@ def _run_stats_check(
     )
 
     if not np.isfinite(curr_peak) or curr_peak > 3.0:
+        print("FAIL knee_moment_2d_contract: magnitude bounds")
+        print(f"current_peak_abs_nm_per_kg={curr_peak:.9g}")
+        print(f"REGEN_BASELINE_CMD={regen_cmd}")
+        return EXIT_MAGNITUDE_BOUNDS
+
+    if curr_peak < 0.05:
         print("FAIL knee_moment_2d_contract: magnitude bounds")
         print(f"current_peak_abs_nm_per_kg={curr_peak:.9g}")
         print(f"REGEN_BASELINE_CMD={regen_cmd}")

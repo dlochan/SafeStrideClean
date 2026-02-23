@@ -26,7 +26,7 @@ def write_knee_moment_2d_artifacts(
         p = d / name
         if p.exists() and not overwrite:
             raise FileExistsError(str(p))
-        np.save(p, np.asarray(arr))
+        np.save(p, np.asarray(arr, dtype=np.float32))
 
     save("theta_shank_rad.npy", theta_shank_rad)
     save("fz.npy", fz_n)
@@ -38,7 +38,7 @@ def write_knee_moment_2d_artifacts(
     terms_path = d / "moment_terms.npz"
     if terms_path.exists() and not overwrite:
         raise FileExistsError(str(terms_path))
-    np.savez(terms_path, **{k: np.asarray(v) for k, v in result.terms.items()})
+    np.savez(terms_path, **{k: np.asarray(v, dtype=np.float32) for k, v in result.terms.items()})
 
     meta: Dict[str, Any] = dict(result.metadata)
     meta["run_id"] = str(run_id)
