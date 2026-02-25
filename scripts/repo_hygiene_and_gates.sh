@@ -173,6 +173,14 @@ fi
     exit 53
   fi
 
+  echo "--- running knee analytics walking contract ---"
+  if bash scripts/ci_check_knee_analytics_walk_contract.sh; then
+    pass "ci_check_knee_analytics_walk_contract"
+  else
+    fail "ci_check_knee_analytics_walk_contract"
+    exit 54
+  fi
+
   echo "--- running IMU -> GRF inference contract ---"
   if bash scripts/ci_check_imu_infer_contract.sh; then
     pass "ci_check_imu_infer_contract"

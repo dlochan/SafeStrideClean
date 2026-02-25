@@ -1,0 +1,25 @@
+{
+  "curve_len": 256,
+  "fixture": "tests/fixtures/imu_sample.csv",
+  "p95_nm_per_kg_band": [
+    0.1840710057487488,
+    0.27610900862312315
+  ],
+  "peak_nm_per_kg_band": [
+    0.19922939674758913,
+    0.2988465951213836
+  ],
+  "required_keys": [
+    "schema_version",
+    "fixture",
+    "inputs",
+    "curve_len",
+    "curve_stats",
+    "peak_nm_per_kg",
+    "p95_nm_per_kg",
+    "finite_fraction",
+    "smoothness_max_abs_first_diff"
+  ],
+  "schema_version": "knee_analytics_walk_contract_v1",
+  "smoothness_max_abs_first_diff_max": 0.00940750701522827
+}
