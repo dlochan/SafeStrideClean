@@ -413,20 +413,36 @@ def main() -> int:
         smooth_window_samples=int(analytics.get("smooth_window_samples")),
     )
 
-    if curve.size >= 2:
-        diffs = np.diff(curve.astype(np.float64))
-        abs_d1 = np.abs(diffs)
+    stance_start_idx = int(stance.get("start_idx", 0))
+    stance_end_idx = int(stance.get("end_idx", int(curve.size - 1)))
+    if curve.size == 0:
+        raise ValueError("empty moment curve")
+    stance_start_idx = max(0, min(int(stance_start_idx), int(curve.size - 1)))
+    stance_end_idx = max(0, min(int(stance_end_idx), int(curve.size - 1)))
+    if stance_end_idx < stance_start_idx:
+        stance_start_idx = 0
+        stance_end_idx = int(curve.size - 1)
+
+    seg_curve = curve[int(stance_start_idx) : int(stance_end_idx) + 1].astype(np.float64, copy=False)
+    smoothness_region_samples = int(seg_curve.size)
+
+    if seg_curve.size >= 2:
+        d1 = np.diff(seg_curve)
+        abs_d1 = np.abs(d1)
         smoothness = float(np.max(abs_d1))
         smoothness_p95_abs_first_diff = float(np.percentile(abs_d1, 95.0))
     else:
         smoothness = 0.0
         smoothness_p95_abs_first_diff = 0.0
 
-    if curve.size >= 3:
-        d2 = np.diff(curve.astype(np.float64), n=2)
-        smoothness_max_abs_second_diff = float(np.max(np.abs(d2)))
+    if seg_curve.size >= 3:
+        d2 = np.diff(seg_curve, n=2)
+        abs_d2 = np.abs(d2)
+        smoothness_max_abs_second_diff = float(np.max(abs_d2))
+        smoothness_p95_abs_second_diff = float(np.percentile(abs_d2, 95.0))
     else:
         smoothness_max_abs_second_diff = 0.0
+        smoothness_p95_abs_second_diff = 0.0
 
     peak_fz_n_per_kg = float(np.max(fz_first_n_per_kg.astype(np.float64)))
     peak_moment_nm_per_kg = float(peak)
@@ -466,6 +482,7 @@ def main() -> int:
             "smoothness_max_abs_first_diff": "Nm/kg per sample",
             "smoothness_p95_abs_first_diff": "Nm/kg per sample",
             "smoothness_max_abs_second_diff": "Nm/kg per sample^2",
+            "smoothness_p95_abs_second_diff": "Nm/kg per sample^2",
         },
         "inputs": {
             "mass_kg": float(args.mass_kg),
@@ -477,6 +494,7 @@ def main() -> int:
             "stride": 1,
             "filter_kind": str(analytics.get("filter_kind")),
             "smooth_window_samples": int(analytics.get("smooth_window_samples")),
+            "smoothness_region": "stance",
             "normalize_debug": {
                 "raw_columns": list(debug.raw_columns),
                 "canon_columns": list(debug.canon_columns),
@@ -487,6 +505,7 @@ def main() -> int:
         "stance": stance,
         "curve_len": int(curve.size),
         "fz_curve_len": int(fz_first.size),
+        "smoothness_region_samples": int(smoothness_region_samples),
         "curve_stats": stats,
         "peak_nm_per_kg": float(peak),
         "p95_nm_per_kg": float(p95),
@@ -494,6 +513,7 @@ def main() -> int:
         "smoothness_max_abs_first_diff": float(smoothness),
         "smoothness_p95_abs_first_diff": float(smoothness_p95_abs_first_diff),
         "smoothness_max_abs_second_diff": float(smoothness_max_abs_second_diff),
+        "smoothness_p95_abs_second_diff": float(smoothness_p95_abs_second_diff),
         "peak_fz_n_per_kg": float(peak_fz_n_per_kg),
         "sanity_checks": sanity,
     }

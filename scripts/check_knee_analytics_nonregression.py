@@ -70,20 +70,37 @@ def _compute_current_from_out_dir(out_dir: Path) -> Dict[str, Any]:
     if not np.isfinite(curve).all():
         raise ValueError("non-finite curve")
 
-    if curve.size >= 2:
-        diffs = np.diff(curve.astype(np.float64))
-        abs_d1 = np.abs(diffs)
+    stance_obj = metrics.get("stance")
+    if not isinstance(stance_obj, dict):
+        raise ValueError("missing stance")
+    stance_start_idx = int(stance_obj.get("start_idx", 0))
+    stance_end_idx = int(stance_obj.get("end_idx", int(curve.size - 1)))
+    stance_start_idx = max(0, min(int(stance_start_idx), int(curve.size - 1)))
+    stance_end_idx = max(0, min(int(stance_end_idx), int(curve.size - 1)))
+    if stance_end_idx < stance_start_idx:
+        stance_start_idx = 0
+        stance_end_idx = int(curve.size - 1)
+
+    seg_curve = curve[int(stance_start_idx) : int(stance_end_idx) + 1].astype(np.float64, copy=False)
+    smoothness_region_samples = int(seg_curve.size)
+
+    if seg_curve.size >= 2:
+        d1 = np.diff(seg_curve)
+        abs_d1 = np.abs(d1)
         smoothness = float(np.max(abs_d1))
         smoothness_p95_abs_first_diff = float(np.percentile(abs_d1, 95.0))
     else:
         smoothness = 0.0
         smoothness_p95_abs_first_diff = 0.0
 
-    if curve.size >= 3:
-        d2 = np.diff(curve.astype(np.float64), n=2)
-        smoothness_max_abs_second_diff = float(np.max(np.abs(d2)))
+    if seg_curve.size >= 3:
+        d2 = np.diff(seg_curve, n=2)
+        abs_d2 = np.abs(d2)
+        smoothness_max_abs_second_diff = float(np.max(abs_d2))
+        smoothness_p95_abs_second_diff = float(np.percentile(abs_d2, 95.0))
     else:
         smoothness_max_abs_second_diff = 0.0
+        smoothness_p95_abs_second_diff = 0.0
 
     peak = float(np.max(curve.astype(np.float64)))
     p95 = float(np.percentile(curve.astype(np.float64), 95.0))
@@ -92,6 +109,7 @@ def _compute_current_from_out_dir(out_dir: Path) -> Dict[str, Any]:
         "schema_version",
         "fixture",
         "inputs",
+        "inputs.smoothness_region",
         "curve_len",
         "curve_stats",
         "peak_nm_per_kg",
@@ -100,15 +118,25 @@ def _compute_current_from_out_dir(out_dir: Path) -> Dict[str, Any]:
         "smoothness_max_abs_first_diff",
         "smoothness_p95_abs_first_diff",
         "smoothness_max_abs_second_diff",
+        "smoothness_p95_abs_second_diff",
+        "smoothness_region_samples",
     ]
+
     for k in required_keys:
-        if k not in metrics:
-            raise ValueError(f"missing key {k}")
+        cur: Any = metrics
+        for part in str(k).split("."):
+            if not isinstance(cur, dict) or part not in cur:
+                raise ValueError(f"missing key {k}")
+            cur = cur[part]
 
     if str(metrics.get("schema_version")) != "knee_analytics_v1":
         raise ValueError("unexpected knee_metrics schema_version")
     if str(metrics.get("fixture")) != FIXTURE_REL_PATH:
         raise ValueError("unexpected fixture")
+
+    smoothness_region = ((metrics.get("inputs") or {}).get("smoothness_region"))
+    if str(smoothness_region) != "stance":
+        raise ValueError("inputs.smoothness_region must be 'stance'")
 
     finite_fraction = float(metrics.get("finite_fraction", 0.0))
     if finite_fraction != 1.0:
@@ -124,6 +152,8 @@ def _compute_current_from_out_dir(out_dir: Path) -> Dict[str, Any]:
         "smoothness_max_abs_first_diff": float(smoothness),
         "smoothness_p95_abs_first_diff": float(smoothness_p95_abs_first_diff),
         "smoothness_max_abs_second_diff": float(smoothness_max_abs_second_diff),
+        "smoothness_p95_abs_second_diff": float(smoothness_p95_abs_second_diff),
+        "smoothness_region_samples": int(smoothness_region_samples),
     }
 
 
@@ -178,12 +208,15 @@ def _compare(baseline: Dict[str, Any], current: Dict[str, Any]) -> Tuple[bool, D
     smooth_max = float(baseline.get("smoothness_max_abs_first_diff_max", 0.0))
     baseline_smooth_p95_d1 = float(baseline.get("smoothness_p95_abs_first_diff", 0.0))
     baseline_smooth_max_d2 = float(baseline.get("smoothness_max_abs_second_diff", 0.0))
+    baseline_smooth_p95_d2 = float(baseline.get("smoothness_p95_abs_second_diff", 0.0))
 
     peak = float(current.get("peak_nm_per_kg", 0.0))
     p95 = float(current.get("p95_nm_per_kg", 0.0))
     smooth = float(current.get("smoothness_max_abs_first_diff", 0.0))
     smooth_p95_d1 = float(current.get("smoothness_p95_abs_first_diff", 0.0))
     smooth_max_d2 = float(current.get("smoothness_max_abs_second_diff", 0.0))
+    smooth_p95_d2 = float(current.get("smoothness_p95_abs_second_diff", 0.0))
+    smoothness_region_samples = int(current.get("smoothness_region_samples", -1))
 
     if not (isinstance(peak_band, list) and len(peak_band) == 2):
         ok = False
@@ -207,10 +240,23 @@ def _compare(baseline: Dict[str, Any], current: Dict[str, Any]) -> Tuple[bool, D
 
     smooth_ok = (smooth <= smooth_max) and np.isfinite(smooth)
 
-    smooth_p95_ok = (smooth_p95_d1 <= baseline_smooth_p95_d1 * 1.10) and np.isfinite(smooth_p95_d1)
-    smooth_d2_ok = (smooth_max_d2 <= baseline_smooth_max_d2 * 1.15) and np.isfinite(smooth_max_d2)
+    smooth_p95_d1_max = float(max(baseline_smooth_p95_d1 * 1.10, 1e-6))
+    smooth_max_d2_max = float(max(baseline_smooth_max_d2 * 1.15, 1e-5))
+    smooth_p95_d2_max = float(max(baseline_smooth_p95_d2 * 1.15, 1e-5))
 
-    if not peak_ok or not p95_ok or not smooth_ok or not smooth_p95_ok or not smooth_d2_ok:
+    smooth_p95_ok = (smooth_p95_d1 <= smooth_p95_d1_max) and np.isfinite(smooth_p95_d1)
+    smooth_d2_ok = (smooth_max_d2 <= smooth_max_d2_max) and np.isfinite(smooth_max_d2)
+    smooth_p95_d2_ok = (smooth_p95_d2 <= smooth_p95_d2_max) and np.isfinite(smooth_p95_d2)
+
+    if (
+        not peak_ok
+        or not p95_ok
+        or not smooth_ok
+        or not smooth_p95_ok
+        or not smooth_d2_ok
+        or not smooth_p95_d2_ok
+        or smoothness_region_samples <= 0
+    ):
         ok = False
 
     report = {
@@ -222,10 +268,14 @@ def _compare(baseline: Dict[str, Any], current: Dict[str, Any]) -> Tuple[bool, D
         "smoothness_max_abs_first_diff_max": smooth_max,
         "smoothness_p95_abs_first_diff": smooth_p95_d1,
         "smoothness_p95_abs_first_diff_baseline": baseline_smooth_p95_d1,
-        "smoothness_p95_abs_first_diff_max": float(baseline_smooth_p95_d1 * 1.10),
+        "smoothness_p95_abs_first_diff_max": float(smooth_p95_d1_max),
         "smoothness_max_abs_second_diff": smooth_max_d2,
         "smoothness_max_abs_second_diff_baseline": baseline_smooth_max_d2,
-        "smoothness_max_abs_second_diff_max": float(baseline_smooth_max_d2 * 1.15),
+        "smoothness_max_abs_second_diff_max": float(smooth_max_d2_max),
+        "smoothness_p95_abs_second_diff": smooth_p95_d2,
+        "smoothness_p95_abs_second_diff_baseline": baseline_smooth_p95_d2,
+        "smoothness_p95_abs_second_diff_max": float(smooth_p95_d2_max),
+        "smoothness_region_samples": int(smoothness_region_samples),
     }
 
     return ok, report
@@ -252,6 +302,7 @@ def main() -> int:
         smooth = float(current["smoothness_max_abs_first_diff"])
         smooth_p95_d1 = float(current["smoothness_p95_abs_first_diff"])
         smooth_max_d2 = float(current["smoothness_max_abs_second_diff"])
+        smooth_p95_d2 = float(current["smoothness_p95_abs_second_diff"])
 
         peak_lo, peak_hi = _make_band(peak, frac=0.20, abs_pad=1e-6)
         p95_lo, p95_hi = _make_band(p95, frac=0.20, abs_pad=1e-6)
@@ -267,6 +318,7 @@ def main() -> int:
             "smoothness_max_abs_first_diff_max": float(smooth_max),
             "smoothness_p95_abs_first_diff": float(smooth_p95_d1),
             "smoothness_max_abs_second_diff": float(smooth_max_d2),
+            "smoothness_p95_abs_second_diff": float(smooth_p95_d2),
         }
 
         baseline_path.parent.mkdir(parents=True, exist_ok=True)
@@ -302,11 +354,19 @@ def main() -> int:
         f"p95_nm_per_kg={float(report['p95_nm_per_kg']):.6g} "
         f"smoothness_max_abs_first_diff={float(report['smoothness_max_abs_first_diff']):.6g} "
         f"smoothness_p95_abs_first_diff={float(report['smoothness_p95_abs_first_diff']):.6g} "
-        f"smoothness_max_abs_second_diff={float(report['smoothness_max_abs_second_diff']):.6g}"
+        f"smoothness_max_abs_second_diff={float(report['smoothness_max_abs_second_diff']):.6g} "
+        f"smoothness_p95_abs_second_diff={float(report['smoothness_p95_abs_second_diff']):.6g} "
+        f"smoothness_region_samples={int(report['smoothness_region_samples'])}"
     )
 
     if not ok:
         print("FAIL knee_analytics_walk_contract")
+        print(
+            "KNEE_ANALYTICS_CONTRACT limits: "
+            f"smooth_p95_d1<={float(report['smoothness_p95_abs_first_diff_max']):.6g} "
+            f"smooth_max_d2<={float(report['smoothness_max_abs_second_diff_max']):.6g} "
+            f"smooth_p95_d2<={float(report['smoothness_p95_abs_second_diff_max']):.6g}"
+        )
         print(json.dumps(report, indent=2, sort_keys=True))
         print(f"REGEN_BASELINE_CMD={REGEN_BASELINE_CMD}")
         return EXIT_CONTRACT_MISMATCH

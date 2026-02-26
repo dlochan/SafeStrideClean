@@ -13,6 +13,7 @@
     "schema_version",
     "fixture",
     "inputs",
+    "inputs.smoothness_region",
     "curve_len",
     "curve_stats",
     "peak_nm_per_kg",
@@ -20,10 +21,13 @@
     "finite_fraction",
     "smoothness_max_abs_first_diff",
     "smoothness_p95_abs_first_diff",
-    "smoothness_max_abs_second_diff"
+    "smoothness_max_abs_second_diff",
+    "smoothness_p95_abs_second_diff",
+    "smoothness_region_samples"
   ],
   "schema_version": "knee_analytics_walk_contract_v1",
   "smoothness_max_abs_first_diff_max": 0.00940750701522827,
   "smoothness_max_abs_second_diff": 0.006135016679763794,
-  "smoothness_p95_abs_first_diff": 0.0
+  "smoothness_p95_abs_first_diff": 0.0,
+  "smoothness_p95_abs_second_diff": 0.0
 }
