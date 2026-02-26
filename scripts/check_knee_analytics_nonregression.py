@@ -84,6 +84,9 @@ def _compute_current_from_out_dir(out_dir: Path) -> Dict[str, Any]:
     seg_curve = curve[int(stance_start_idx) : int(stance_end_idx) + 1].astype(np.float64, copy=False)
     smoothness_region_samples = int(seg_curve.size)
 
+    stance_samples = int(stance_obj.get("stance_samples", int(stance_end_idx - stance_start_idx + 1)))
+    min_stance_samples = int(stance_obj.get("min_stance_samples", 0))
+
     if seg_curve.size >= 2:
         d1 = np.diff(seg_curve)
         abs_d1 = np.abs(d1)
@@ -113,6 +116,16 @@ def _compute_current_from_out_dir(out_dir: Path) -> Dict[str, Any]:
         "inputs.lever_arm_model",
         "inputs.lever_arm_base_m",
         "inputs.lever_arm_gain_m",
+        "inputs.rel_gyro_norm_band",
+        "inputs.enter_thresh",
+        "inputs.exit_thresh",
+        "inputs.enter_thresh_n_per_kg",
+        "inputs.exit_thresh_n_per_kg",
+        "inputs.min_stance_s",
+        "inputs.max_stance_s",
+        "stance.stance_samples",
+        "stance.stance_duration_s",
+        "stance.min_stance_samples",
         "curve_len",
         "curve_stats",
         "peak_nm_per_kg",
@@ -159,6 +172,8 @@ def _compute_current_from_out_dir(out_dir: Path) -> Dict[str, Any]:
         "fixture": FIXTURE_REL_PATH,
         "required_keys": required_keys,
         "curve_len": int(curve.size),
+        "stance_samples": int(stance_samples),
+        "min_stance_samples": int(min_stance_samples),
         "peak_nm_per_kg": float(peak),
         "p95_nm_per_kg": float(p95),
         "smoothness_max_abs_first_diff": float(smoothness),
@@ -233,6 +248,8 @@ def _compare(baseline: Dict[str, Any], current: Dict[str, Any]) -> Tuple[bool, D
     smoothness_region_samples = int(current.get("smoothness_region_samples", -1))
     fz_range_n_per_kg = float(current.get("fz_range_n_per_kg", 0.0))
     moment_range_nm_per_kg = float(current.get("moment_range_nm_per_kg", 0.0))
+    stance_samples = int(current.get("stance_samples", -1))
+    min_stance_samples = int(current.get("min_stance_samples", 0))
 
     if not (isinstance(peak_band, list) and len(peak_band) == 2):
         ok = False
@@ -269,6 +286,8 @@ def _compare(baseline: Dict[str, Any], current: Dict[str, Any]) -> Tuple[bool, D
     fz_range_ok = (fz_range_n_per_kg >= float(fz_range_floor)) and np.isfinite(fz_range_n_per_kg)
     moment_range_ok = (moment_range_nm_per_kg >= float(moment_range_floor)) and np.isfinite(moment_range_nm_per_kg)
 
+    stance_samples_ok = (stance_samples >= int(min_stance_samples)) and (stance_samples > 0)
+
     if (
         not peak_ok
         or not p95_ok
@@ -279,6 +298,7 @@ def _compare(baseline: Dict[str, Any], current: Dict[str, Any]) -> Tuple[bool, D
         or smoothness_region_samples <= 0
         or not fz_range_ok
         or not moment_range_ok
+        or not stance_samples_ok
     ):
         ok = False
 
@@ -287,6 +307,8 @@ def _compare(baseline: Dict[str, Any], current: Dict[str, Any]) -> Tuple[bool, D
         "peak_band": [peak_lo, peak_hi],
         "p95_nm_per_kg": p95,
         "p95_band": [p95_lo, p95_hi],
+        "stance_samples": int(stance_samples),
+        "min_stance_samples": int(min_stance_samples),
         "smoothness_max_abs_first_diff": smooth,
         "smoothness_max_abs_first_diff_max": smooth_max,
         "smoothness_p95_abs_first_diff": smooth_p95_d1,
@@ -383,6 +405,8 @@ def main() -> int:
         f"curve_len={int(current.get('curve_len', -1))} "
         f"peak_nm_per_kg={float(report['peak_nm_per_kg']):.6g} "
         f"p95_nm_per_kg={float(report['p95_nm_per_kg']):.6g} "
+        f"stance_samples={int(report['stance_samples'])} "
+        f"min_stance_samples={int(report['min_stance_samples'])} "
         f"smoothness_max_abs_first_diff={float(report['smoothness_max_abs_first_diff']):.6g} "
         f"smoothness_p95_abs_first_diff={float(report['smoothness_p95_abs_first_diff']):.6g} "
         f"smoothness_max_abs_second_diff={float(report['smoothness_max_abs_second_diff']):.6g} "
@@ -396,6 +420,7 @@ def main() -> int:
         print("FAIL knee_analytics_walk_contract")
         print(
             "KNEE_ANALYTICS_CONTRACT limits: "
+            f"stance_samples>={int(report['min_stance_samples'])} "
             f"smooth_p95_d1<={float(report['smoothness_p95_abs_first_diff_max']):.6g} "
             f"smooth_max_d2<={float(report['smoothness_max_abs_second_diff_max']):.6g} "
             f"smooth_p95_d2<={float(report['smoothness_p95_abs_second_diff_max']):.6g} "

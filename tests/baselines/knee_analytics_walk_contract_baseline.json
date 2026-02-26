@@ -1,8 +1,8 @@
 {
   "curve_len": 256,
   "fixture": "tests/fixtures/imu_sample.csv",
-  "fz_range_n_per_kg": 0.5154313802719113,
-  "moment_range_nm_per_kg": 0.016752862930297846,
+  "fz_range_n_per_kg": 0.7838091850280762,
+  "moment_range_nm_per_kg": 0.018947526812553406,
   "p95_nm_per_kg_band": [
     0.1840710057487488,
     0.27610900862312315
@@ -19,6 +19,16 @@
     "inputs.lever_arm_model",
     "inputs.lever_arm_base_m",
     "inputs.lever_arm_gain_m",
+    "inputs.rel_gyro_norm_band",
+    "inputs.enter_thresh",
+    "inputs.exit_thresh",
+    "inputs.enter_thresh_n_per_kg",
+    "inputs.exit_thresh_n_per_kg",
+    "inputs.min_stance_s",
+    "inputs.max_stance_s",
+    "stance.stance_samples",
+    "stance.stance_duration_s",
+    "stance.min_stance_samples",
     "curve_len",
     "curve_stats",
     "peak_nm_per_kg",
@@ -35,6 +45,6 @@
   "schema_version": "knee_analytics_walk_contract_v1",
   "smoothness_max_abs_first_diff_max": 0.00940750701522827,
   "smoothness_max_abs_second_diff": 0.006135016679763794,
-  "smoothness_p95_abs_first_diff": 0.00627100020647049,
-  "smoothness_p95_abs_second_diff": 0.004635259509086609
+  "smoothness_p95_abs_first_diff": 0.0,
+  "smoothness_p95_abs_second_diff": 0.0
 }

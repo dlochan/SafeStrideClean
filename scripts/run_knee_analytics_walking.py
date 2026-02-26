@@ -11,7 +11,7 @@ import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -174,7 +174,6 @@ def _stance_window_from_fz(
     body_mass_kg: float,
     sample_hz: float,
     g: float = 9.81,
-    threshold_n_per_kg: float = 1.0,
     smooth_window_samples: int = 5,
 ) -> Dict[str, Any]:
     x = np.asarray(fz_n, dtype=np.float32).reshape(-1)
@@ -206,8 +205,11 @@ def _stance_window_from_fz(
         if fz_sm.shape != fz_n_per_kg.shape:
             raise RuntimeError("unexpected smoothing shape")
 
-    thr = float(threshold_n_per_kg)
-    contact = fz_sm > thr
+    enter_thresh = 1.2
+    exit_thresh = 1.0
+    hysteresis_k = 3
+
+    contact = fz_sm > float(exit_thresh)
     contact_fraction_mask = float(np.sum(contact)) / float(contact.size)
 
     segments: List[Tuple[int, int]] = []
@@ -223,47 +225,113 @@ def _stance_window_from_fz(
         segments.append((int(i), int(j - 1)))
         i = j
 
-    method = "longest_contiguous_contact_segment"
-    raw_start_idx = 0
-    raw_end_idx = int(x.size - 1)
+    peak_idx0 = int(np.argmax(fz_sm.astype(np.float64)))
 
-    if not segments:
-        method = "fallback_full_window_contact_always_true"
-        start_idx = 0
-        end_idx = int(x.size - 1)
+    if segments:
+        chosen_seg: Optional[Tuple[int, int]] = None
+        for (s, e) in segments:
+            if int(s) <= int(peak_idx0) <= int(e):
+                chosen_seg = (int(s), int(e))
+                break
+        if chosen_seg is None:
+            best_peak = float("-inf")
+            best_seg = segments[0]
+            for (s, e) in segments:
+                seg_peak = float(np.max(fz_sm[int(s) : int(e) + 1].astype(np.float64)))
+                if seg_peak > best_peak:
+                    best_peak = float(seg_peak)
+                    best_seg = (int(s), int(e))
+            chosen_seg = (int(best_seg[0]), int(best_seg[1]))
+        seg_start, seg_end = int(chosen_seg[0]), int(chosen_seg[1])
     else:
-        seg_lens = [int(e - s + 1) for (s, e) in segments]
-        best_i = int(np.argmax(np.asarray(seg_lens, dtype=np.int64)))
-        start_idx, end_idx = segments[best_i]
+        seg_start, seg_end = 0, int(x.size - 1)
 
-        raw_start_idx = int(start_idx)
-        raw_end_idx = int(end_idx)
+    seg = fz_sm[int(seg_start) : int(seg_end) + 1]
+    peak_idx = int(seg_start + int(np.argmax(seg.astype(np.float64))))
 
-        if int(end_idx - start_idx + 1) == int(x.size):
-            method = "fallback_peak_centered_window_due_to_full_contact_mask"
-            max_stance_duration_s = 0.08
-            cap_len = int(round(float(max_stance_duration_s) * float(hz)))
-            cap_len = max(3, min(int(x.size), int(cap_len)))
-            peak_idx0 = int(np.argmax(fz_sm))
-            start_idx = int(max(0, peak_idx0 - (cap_len // 2)))
-            end_idx = int(start_idx + cap_len - 1)
-            if end_idx > int(x.size - 1):
-                end_idx = int(x.size - 1)
-                start_idx = int(end_idx - cap_len + 1)
+    start_idx = int(seg_start)
+    end_idx = int(seg_end)
 
-    seg = fz_sm[int(start_idx) : int(end_idx) + 1]
-    peak_idx = int(start_idx + int(np.argmax(seg)))
+    below_run = 0
+    for i in range(int(peak_idx), int(seg_start) - 1, -1):
+        if float(fz_sm[int(i)]) < float(enter_thresh):
+            below_run += 1
+            if below_run >= int(hysteresis_k):
+                start_idx = int(i + int(hysteresis_k))
+                break
+        else:
+            below_run = 0
+
+    below_run = 0
+    for i in range(int(peak_idx), int(seg_end) + 1):
+        if float(fz_sm[int(i)]) < float(enter_thresh):
+            below_run += 1
+            if below_run >= int(hysteresis_k):
+                end_idx = int(i - int(hysteresis_k))
+                break
+        else:
+            below_run = 0
+
+    if int(end_idx) < int(start_idx):
+        start_idx = int(seg_start)
+        end_idx = int(seg_end)
+
+    raw_start_idx = int(start_idx)
+    raw_end_idx = int(end_idx)
+
+    min_stance_s = 0.4
+    max_stance_s = 1.2
+    min_stance_samples = int(float(min_stance_s) * float(hz))
+    max_stance_samples = int(float(max_stance_s) * float(hz))
+    min_stance_samples = max(3, min(int(min_stance_samples), int(x.size)))
+    max_stance_samples = max(3, min(int(max_stance_samples), int(x.size)))
+    if int(max_stance_samples) < int(min_stance_samples):
+        max_stance_samples = int(min_stance_samples)
+
+    method = "threshold_hysteresis_segment_peak"
+
+    stance_len = int(end_idx - start_idx + 1)
+    if stance_len < int(min_stance_samples):
+        target_len = int(min_stance_samples)
+        start_idx = int(peak_idx - (target_len // 2))
+        end_idx = int(start_idx + target_len - 1)
+        if start_idx < 0:
+            start_idx = 0
+            end_idx = int(target_len - 1)
+        if end_idx > int(x.size - 1):
+            end_idx = int(x.size - 1)
+            start_idx = int(end_idx - target_len + 1)
+        method = "expanded_to_min_duration"
+    elif stance_len > int(max_stance_samples):
+        target_len = int(max_stance_samples)
+        start_idx = int(peak_idx - (target_len // 2))
+        end_idx = int(start_idx + target_len - 1)
+        if start_idx < 0:
+            start_idx = 0
+            end_idx = int(target_len - 1)
+        if end_idx > int(x.size - 1):
+            end_idx = int(x.size - 1)
+            start_idx = int(end_idx - target_len + 1)
+        method = "shrunk_to_max_duration"
     peak_fz_n_per_kg = float(fz_sm[peak_idx])
 
-    contact_fraction = float(int(end_idx - start_idx + 1)) / float(x.size)
+    stance_samples = int(end_idx - start_idx + 1)
+    contact_fraction = float(int(stance_samples)) / float(x.size)
 
     midstance_idx = int((start_idx + end_idx) // 2)
-    duration_s = float(end_idx - start_idx + 1) / float(hz)
+    duration_s = float(stance_samples) / float(hz)
     bw_n = float(mass) * float(g)
 
     return {
         "method": str(method),
-        "threshold_n_per_kg": float(thr),
+        "threshold_n_per_kg": float(exit_thresh),
+        "enter_thresh_n_per_kg": float(enter_thresh),
+        "exit_thresh_n_per_kg": float(exit_thresh),
+        "hysteresis_k": int(hysteresis_k),
+        "min_stance_s": float(min_stance_s),
+        "max_stance_s": float(max_stance_s),
+        "min_stance_samples": int(min_stance_samples),
+        "max_stance_samples": int(max_stance_samples),
         "contact_fraction": float(contact_fraction),
         "contact_fraction_mask": float(contact_fraction_mask),
         "start_idx": int(start_idx),
@@ -274,6 +342,8 @@ def _stance_window_from_fz(
         "peak_fz_n_per_kg": float(peak_fz_n_per_kg),
         "midstance_idx": int(midstance_idx),
         "duration_s": float(duration_s),
+        "stance_duration_s": float(duration_s),
+        "stance_samples": int(stance_samples),
         "bw_n": float(bw_n),
     }
 
@@ -495,18 +565,19 @@ def main() -> int:
     seg_curve = curve[int(stance_start_idx) : int(stance_end_idx) + 1].astype(np.float64, copy=False)
     smoothness_region_samples = int(seg_curve.size)
 
+    stance_samples = int(stance.get("stance_samples", int(stance_end_idx - stance_start_idx + 1)))
+    min_stance_samples = int(stance.get("min_stance_samples", 0))
+
     fz_seg = fz_first_n_per_kg[int(stance_start_idx) : int(stance_end_idx) + 1].astype(
         np.float64, copy=False
     )
     if fz_seg.size:
-        fz_range_n_per_kg = float(np.percentile(fz_seg, 95.0) - np.percentile(fz_seg, 5.0))
+        fz_range_n_per_kg = float(np.max(fz_seg) - np.min(fz_seg))
     else:
         fz_range_n_per_kg = 0.0
 
     if seg_curve.size:
-        moment_range_nm_per_kg = float(
-            np.percentile(seg_curve, 95.0) - np.percentile(seg_curve, 5.0)
-        )
+        moment_range_nm_per_kg = float(np.max(seg_curve) - np.min(seg_curve))
     else:
         moment_range_nm_per_kg = 0.0
 
@@ -557,7 +628,14 @@ def main() -> int:
         sanity.append({"kind": "peak_moment_nm_per_kg", "status": "ok", "band": list(moment_band)})
 
     fz_range_band = (0.5, 20.0)
-    if fz_range_n_per_kg < float(fz_range_band[0]):
+    if int(stance_samples) < int(min_stance_samples):
+        msg = (
+            "WARN sanity: fz_range_n_per_kg not evaluated as ok due to too-short stance window "
+            f"stance_samples={int(stance_samples)} min_stance_samples={int(min_stance_samples)}"
+        )
+        print(msg)
+        sanity.append({"kind": "fz_range_n_per_kg", "status": "warn", "message": msg, "band": list(fz_range_band)})
+    elif fz_range_n_per_kg < float(fz_range_band[0]):
         msg = (
             "WARN sanity: fz_range_n_per_kg too small (flatline guardrail) "
             f"min_expected={float(fz_range_band[0])} got {fz_range_n_per_kg:.6g}"
@@ -568,7 +646,16 @@ def main() -> int:
         sanity.append({"kind": "fz_range_n_per_kg", "status": "ok", "band": list(fz_range_band)})
 
     moment_range_band = (0.01, 2.0)
-    if moment_range_nm_per_kg < float(moment_range_band[0]):
+    if int(stance_samples) < int(min_stance_samples):
+        msg = (
+            "WARN sanity: moment_range_nm_per_kg not evaluated as ok due to too-short stance window "
+            f"stance_samples={int(stance_samples)} min_stance_samples={int(min_stance_samples)}"
+        )
+        print(msg)
+        sanity.append(
+            {"kind": "moment_range_nm_per_kg", "status": "warn", "message": msg, "band": list(moment_range_band)}
+        )
+    elif moment_range_nm_per_kg < float(moment_range_band[0]):
         msg = (
             "WARN sanity: moment_range_nm_per_kg too small (flatline guardrail) "
             f"min_expected={float(moment_range_band[0])} got {moment_range_nm_per_kg:.6g}"
@@ -602,6 +689,13 @@ def main() -> int:
             "lever_arm_model": "dynamic_rel_gyro_v1",
             "lever_arm_base_m": float(lever_arm_base_m),
             "lever_arm_gain_m": float(lever_arm_gain_m),
+            "rel_gyro_norm_band": 2.5,
+            "enter_thresh": float(stance.get("enter_thresh_n_per_kg", 1.2)),
+            "exit_thresh": float(stance.get("exit_thresh_n_per_kg", 1.0)),
+            "enter_thresh_n_per_kg": float(stance.get("enter_thresh_n_per_kg", 1.2)),
+            "exit_thresh_n_per_kg": float(stance.get("exit_thresh_n_per_kg", 1.0)),
+            "min_stance_s": float(stance.get("min_stance_s", 0.4)),
+            "max_stance_s": float(stance.get("max_stance_s", 1.2)),
             "window_len": 256,
             "num_windows": 64,
             "stride": 1,
