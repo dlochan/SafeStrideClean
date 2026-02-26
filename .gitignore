@@ -71,6 +71,7 @@ data/**/bundles/
 
 # Local artifacts
 artifacts/
+artifacts/**/._*
 
 # Ignore hardening (generated caches)
 __pycache__/

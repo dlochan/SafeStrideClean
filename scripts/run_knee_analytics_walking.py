@@ -130,6 +130,21 @@ def _write_curve_csv(path: Path, curve: np.ndarray) -> None:
             f.write(f"{int(i)},{float(v):.6f}\n")
 
 
+def _write_fz_csv(path: Path, fz_n: np.ndarray, *, mass_kg: float) -> None:
+    x = np.asarray(fz_n, dtype=np.float32).reshape(-1)
+    if x.size == 0:
+        raise ValueError("empty fz")
+    m = float(mass_kg)
+    if m <= 0.0 or not np.isfinite(m):
+        raise ValueError("invalid mass_kg")
+    fz_n_per_kg = (x.astype(np.float64) / m).astype(np.float32, copy=False)
+
+    with path.open("w", encoding="utf-8", newline="") as f:
+        f.write("idx,fz_n,fz_n_per_kg\n")
+        for i, (v1, v2) in enumerate(zip(x.tolist(), fz_n_per_kg.tolist())):
+            f.write(f"{int(i)},{float(v1):.6f},{float(v2):.6f}\n")
+
+
 def _write_plot(path: Path, curve: np.ndarray) -> None:
     os.environ.setdefault("MPLBACKEND", "Agg")
     try:
@@ -151,6 +166,182 @@ def _write_plot(path: Path, curve: np.ndarray) -> None:
     fig.tight_layout()
     fig.savefig(str(path))
     plt.close(fig)
+
+
+def _stance_window_from_fz(
+    fz_n: np.ndarray,
+    *,
+    body_mass_kg: float,
+    sample_hz: float,
+    g: float = 9.81,
+    threshold_n_per_kg: float = 1.0,
+    smooth_window_samples: int = 5,
+) -> Dict[str, Any]:
+    x = np.asarray(fz_n, dtype=np.float32).reshape(-1)
+    if x.size == 0:
+        raise ValueError("empty fz")
+    if not np.isfinite(x).all():
+        raise ValueError("non-finite fz")
+
+    mass = float(body_mass_kg)
+    if mass <= 0.0 or not np.isfinite(mass):
+        raise ValueError("invalid body_mass_kg")
+    hz = float(sample_hz)
+    if hz <= 0.0 or not np.isfinite(hz):
+        raise ValueError("invalid sample_hz")
+
+    fz_n_per_kg = x.astype(np.float64) / float(mass)
+
+    w = int(smooth_window_samples)
+    if w < 1:
+        raise ValueError("invalid smooth_window_samples")
+    if w == 1:
+        fz_sm = fz_n_per_kg
+    else:
+        pad_l = w // 2
+        pad_r = int(w - 1 - pad_l)
+        xp = np.pad(fz_n_per_kg, (pad_l, pad_r), mode="edge")
+        kernel = (np.ones(w, dtype=np.float64) / float(w)).astype(np.float64, copy=False)
+        fz_sm = np.convolve(xp, kernel, mode="valid")
+        if fz_sm.shape != fz_n_per_kg.shape:
+            raise RuntimeError("unexpected smoothing shape")
+
+    thr = float(threshold_n_per_kg)
+    contact = fz_sm > thr
+    contact_fraction_mask = float(np.sum(contact)) / float(contact.size)
+
+    segments: List[Tuple[int, int]] = []
+    i = 0
+    n = int(contact.size)
+    while i < n:
+        if not bool(contact[i]):
+            i += 1
+            continue
+        j = i + 1
+        while j < n and bool(contact[j]):
+            j += 1
+        segments.append((int(i), int(j - 1)))
+        i = j
+
+    method = "longest_contiguous_contact_segment"
+    raw_start_idx = 0
+    raw_end_idx = int(x.size - 1)
+
+    if not segments:
+        method = "fallback_full_window_contact_always_true"
+        start_idx = 0
+        end_idx = int(x.size - 1)
+    else:
+        seg_lens = [int(e - s + 1) for (s, e) in segments]
+        best_i = int(np.argmax(np.asarray(seg_lens, dtype=np.int64)))
+        start_idx, end_idx = segments[best_i]
+
+        raw_start_idx = int(start_idx)
+        raw_end_idx = int(end_idx)
+
+        if int(end_idx - start_idx + 1) == int(x.size):
+            method = "fallback_peak_centered_window_due_to_full_contact_mask"
+            max_stance_duration_s = 1.2
+            cap_len = int(round(float(max_stance_duration_s) * float(hz)))
+            cap_len = max(3, min(int(x.size), int(cap_len)))
+            peak_idx0 = int(np.argmax(fz_sm))
+            start_idx = int(max(0, peak_idx0 - (cap_len // 2)))
+            end_idx = int(start_idx + cap_len - 1)
+            if end_idx > int(x.size - 1):
+                end_idx = int(x.size - 1)
+                start_idx = int(end_idx - cap_len + 1)
+
+    seg = fz_sm[int(start_idx) : int(end_idx) + 1]
+    peak_idx = int(start_idx + int(np.argmax(seg)))
+    peak_fz_n_per_kg = float(fz_sm[peak_idx])
+
+    contact_fraction = float(int(end_idx - start_idx + 1)) / float(x.size)
+
+    midstance_idx = int((start_idx + end_idx) // 2)
+    duration_s = float(end_idx - start_idx + 1) / float(hz)
+    bw_n = float(mass) * float(g)
+
+    return {
+        "method": str(method),
+        "threshold_n_per_kg": float(thr),
+        "contact_fraction": float(contact_fraction),
+        "contact_fraction_mask": float(contact_fraction_mask),
+        "start_idx": int(start_idx),
+        "end_idx": int(end_idx),
+        "raw_start_idx": int(raw_start_idx),
+        "raw_end_idx": int(raw_end_idx),
+        "peak_fz_idx": int(peak_idx),
+        "peak_fz_n_per_kg": float(peak_fz_n_per_kg),
+        "midstance_idx": int(midstance_idx),
+        "duration_s": float(duration_s),
+        "bw_n": float(bw_n),
+    }
+
+
+def _artifact_readme_text(*, knee_metrics: Dict[str, Any]) -> str:
+    u = knee_metrics.get("units", {})
+    fz_conv = ((knee_metrics.get("inputs") or {}).get("fz_units")) or {}
+    stance = knee_metrics.get("stance", {})
+    dt_s = ((knee_metrics.get("inputs") or {}).get("dt_s"))
+    sample_hz = ((knee_metrics.get("inputs") or {}).get("sample_hz"))
+    smooth_window_samples = ((knee_metrics.get("inputs") or {}).get("smooth_window_samples"))
+
+    return (
+        "# Knee analytics (walking-only) artifacts\n"
+        "\n"
+        "This README is generated per-run under artifacts/knee_analytics_walk_*/README.md.\n"
+        "\n"
+        "## Inputs\n"
+        "- Canonical IMU: derived from the walking fixture and normalized via the repo IMU normalizer.\n"
+        "- Predicted vertical GRF (Fz): inferred by the IMU->GRF path (vNext Fz model or deterministic fallback).\n"
+        "\n"
+        "### Units\n"
+        f"- Fz curve: {u.get('fz_curve', 'unknown')}\n"
+        f"- Fz curve (per kg): {u.get('fz_curve_per_kg', 'unknown')}\n"
+        f"- Knee moment curve: {u.get('knee_moment_curve', 'unknown')}\n"
+        "\n"
+        "### Fz conversion provenance\n"
+        f"- Converted to Newtons: {fz_conv.get('units', 'unknown')}\n"
+        f"- target_norm.json: {fz_conv.get('target_norm_path', 'unknown')}\n"
+        f"- target_norm.json sha256: {fz_conv.get('target_norm_json_sha256', 'unknown')}\n"
+        "\n"
+        "## Outputs\n"
+        "- fz_curve.csv: predicted vertical GRF curve for the first window (both N and N/kg columns).\n"
+        "- knee_moment_curve.csv: proxy knee sagittal-plane moment curve for the first window.\n"
+        "- knee_moment_plot.png: plot of the moment curve.\n"
+        "- knee_metrics.json: summary stats and provenance for this run.\n"
+        "- provenance.txt: minimal run provenance (git sha, parameters).\n"
+        "\n"
+        "### What the knee moment curve means\n"
+        "This is a proxy: moment(t) = Fz(t) * lever_arm_m, normalized by body mass to yield Nm/kg.\n"
+        "It is meant to provide a stable, interpretable signal for a walking-only knee health slice.\n"
+        "\n"
+        "### Sanity checks (warn-only)\n"
+        "Sanity check bands are MVP guardrails for debugging and CI monitoring; they are not validated clinical thresholds.\n"
+        "\n"
+        "### Stance window assumptions\n"
+        "We define a stance window within the 256-sample window by thresholding smoothed Fz (N/kg) and\n"
+        "selecting the longest contiguous above-threshold segment. Mid-stance is identified as the midpoint\n"
+        "of the stance interval.\n"
+        f"- stance method: {stance.get('method', 'unknown')}\n"
+        f"- threshold_n_per_kg: {stance.get('threshold_n_per_kg', 'unknown')}\n"
+        f"- stance start_idx: {stance.get('start_idx', 'unknown')}\n"
+        f"- stance end_idx: {stance.get('end_idx', 'unknown')}\n"
+        f"- peak_fz_idx: {stance.get('peak_fz_idx', 'unknown')}\n"
+        f"- midstance_idx: {stance.get('midstance_idx', 'unknown')}\n"
+        "\n"
+        "### Smoothing and sampling\n"
+        f"- sample_hz: {sample_hz}\n"
+        f"- dt_s: {dt_s}\n"
+        f"- smooth_window_samples: {smooth_window_samples}\n"
+        "The knee moment curve is smoothed to avoid noise amplification.\n"
+        "\n"
+        "## Known limitations\n"
+        "- 2D simplification: sagittal-plane proxy only.\n"
+        "- Fz-only: no shear forces and no joint kinematics, so this is not a full inverse dynamics solution.\n"
+        "- No subject-specific segment lengths yet; lever arm is a fixed proxy.\n"
+        "- Predicted Fz depends on the IMU->GRF model and its normalization provenance.\n"
+    )
 
 
 def main() -> int:
@@ -200,6 +391,7 @@ def main() -> int:
 
     fz_n, fz_prov = to_newtons(y, body_mass_kg=float(args.mass_kg))
     fz_first = np.asarray(fz_n[0, :, 0], dtype=np.float32)
+    fz_first_n_per_kg = (fz_first.astype(np.float64) / float(args.mass_kg)).astype(np.float32, copy=False)
 
     analytics = compute_knee_moment_from_fz(
         fz_first,
@@ -214,23 +406,77 @@ def main() -> int:
     p95 = float(stats["p95"])
     finite_fraction = float(stats["finite_fraction"])
 
+    stance = _stance_window_from_fz(
+        fz_first,
+        body_mass_kg=float(args.mass_kg),
+        sample_hz=float(sample_hz),
+        smooth_window_samples=int(analytics.get("smooth_window_samples")),
+    )
+
     if curve.size >= 2:
         diffs = np.diff(curve.astype(np.float64))
-        smoothness = float(np.max(np.abs(diffs)))
+        abs_d1 = np.abs(diffs)
+        smoothness = float(np.max(abs_d1))
+        smoothness_p95_abs_first_diff = float(np.percentile(abs_d1, 95.0))
     else:
         smoothness = 0.0
+        smoothness_p95_abs_first_diff = 0.0
+
+    if curve.size >= 3:
+        d2 = np.diff(curve.astype(np.float64), n=2)
+        smoothness_max_abs_second_diff = float(np.max(np.abs(d2)))
+    else:
+        smoothness_max_abs_second_diff = 0.0
+
+    peak_fz_n_per_kg = float(np.max(fz_first_n_per_kg.astype(np.float64)))
+    peak_moment_nm_per_kg = float(peak)
+
+    sanity = []
+    fz_band = (4.0, 20.0)
+    moment_band = (0.05, 1.50)
+    if not (fz_band[0] <= peak_fz_n_per_kg <= fz_band[1]):
+        msg = (
+            "WARN sanity: peak_fz_n_per_kg outside plausible walking band "
+            f"[{fz_band[0]}, {fz_band[1]}], got {peak_fz_n_per_kg:.6g}"
+        )
+        print(msg)
+        sanity.append({"kind": "peak_fz_n_per_kg", "status": "warn", "message": msg, "band": list(fz_band)})
+    else:
+        sanity.append({"kind": "peak_fz_n_per_kg", "status": "ok", "band": list(fz_band)})
+
+    if not (moment_band[0] <= peak_moment_nm_per_kg <= moment_band[1]):
+        msg = (
+            "WARN sanity: peak_moment_nm_per_kg outside plausible walking band "
+            f"[{moment_band[0]}, {moment_band[1]}], got {peak_moment_nm_per_kg:.6g}"
+        )
+        print(msg)
+        sanity.append(
+            {"kind": "peak_moment_nm_per_kg", "status": "warn", "message": msg, "band": list(moment_band)}
+        )
+    else:
+        sanity.append({"kind": "peak_moment_nm_per_kg", "status": "ok", "band": list(moment_band)})
 
     knee_metrics = {
         "schema_version": str(analytics["schema_version"]),
         "fixture": str(fixture_rel),
+        "units": {
+            "fz_curve": "N",
+            "fz_curve_per_kg": "N/kg",
+            "knee_moment_curve": "Nm/kg",
+            "smoothness_max_abs_first_diff": "Nm/kg per sample",
+            "smoothness_p95_abs_first_diff": "Nm/kg per sample",
+            "smoothness_max_abs_second_diff": "Nm/kg per sample^2",
+        },
         "inputs": {
             "mass_kg": float(args.mass_kg),
             "sample_hz": float(sample_hz),
+            "dt_s": float(1.0 / float(sample_hz)),
             "lever_arm_m": float(args.lever_arm_m),
             "window_len": 256,
             "num_windows": 64,
             "stride": 1,
             "filter_kind": str(analytics.get("filter_kind")),
+            "smooth_window_samples": int(analytics.get("smooth_window_samples")),
             "normalize_debug": {
                 "raw_columns": list(debug.raw_columns),
                 "canon_columns": list(debug.canon_columns),
@@ -238,12 +484,18 @@ def main() -> int:
             },
             "fz_units": fz_prov,
         },
+        "stance": stance,
         "curve_len": int(curve.size),
+        "fz_curve_len": int(fz_first.size),
         "curve_stats": stats,
         "peak_nm_per_kg": float(peak),
         "p95_nm_per_kg": float(p95),
         "finite_fraction": float(finite_fraction),
         "smoothness_max_abs_first_diff": float(smoothness),
+        "smoothness_p95_abs_first_diff": float(smoothness_p95_abs_first_diff),
+        "smoothness_max_abs_second_diff": float(smoothness_max_abs_second_diff),
+        "peak_fz_n_per_kg": float(peak_fz_n_per_kg),
+        "sanity_checks": sanity,
     }
 
     (out_dir / "knee_metrics.json").write_text(
@@ -252,7 +504,13 @@ def main() -> int:
     )
 
     _write_curve_csv(out_dir / "knee_moment_curve.csv", curve)
+    _write_fz_csv(out_dir / "fz_curve.csv", fz_first, mass_kg=float(args.mass_kg))
     _write_plot(out_dir / "knee_moment_plot.png", curve)
+
+    (out_dir / "README.md").write_text(
+        _artifact_readme_text(knee_metrics=knee_metrics),
+        encoding="utf-8",
+    )
 
     prov_lines = [
         f"git_sha={gitsha}",
@@ -261,8 +519,16 @@ def main() -> int:
         f"sample_hz={float(sample_hz)}",
         f"lever_arm_m={float(args.lever_arm_m)}",
         f"filter_kind={str(analytics.get('filter_kind'))}",
+        f"fz_units={str(fz_prov.get('units', 'unknown'))}",
+        f"target_norm_path={str(fz_prov.get('target_norm_path', 'unknown'))}",
     ]
     (out_dir / "provenance.txt").write_text("\n".join(prov_lines) + "\n", encoding="utf-8")
+
+    for p in out_dir.rglob("._*"):
+        try:
+            p.unlink(missing_ok=True)
+        except Exception:
+            pass
 
     print(f"OUT_DIR={out_dir}")
     return 0

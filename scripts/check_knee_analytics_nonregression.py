@@ -72,9 +72,18 @@ def _compute_current_from_out_dir(out_dir: Path) -> Dict[str, Any]:
 
     if curve.size >= 2:
         diffs = np.diff(curve.astype(np.float64))
-        smoothness = float(np.max(np.abs(diffs)))
+        abs_d1 = np.abs(diffs)
+        smoothness = float(np.max(abs_d1))
+        smoothness_p95_abs_first_diff = float(np.percentile(abs_d1, 95.0))
     else:
         smoothness = 0.0
+        smoothness_p95_abs_first_diff = 0.0
+
+    if curve.size >= 3:
+        d2 = np.diff(curve.astype(np.float64), n=2)
+        smoothness_max_abs_second_diff = float(np.max(np.abs(d2)))
+    else:
+        smoothness_max_abs_second_diff = 0.0
 
     peak = float(np.max(curve.astype(np.float64)))
     p95 = float(np.percentile(curve.astype(np.float64), 95.0))
@@ -89,6 +98,8 @@ def _compute_current_from_out_dir(out_dir: Path) -> Dict[str, Any]:
         "p95_nm_per_kg",
         "finite_fraction",
         "smoothness_max_abs_first_diff",
+        "smoothness_p95_abs_first_diff",
+        "smoothness_max_abs_second_diff",
     ]
     for k in required_keys:
         if k not in metrics:
@@ -111,6 +122,8 @@ def _compute_current_from_out_dir(out_dir: Path) -> Dict[str, Any]:
         "peak_nm_per_kg": float(peak),
         "p95_nm_per_kg": float(p95),
         "smoothness_max_abs_first_diff": float(smoothness),
+        "smoothness_p95_abs_first_diff": float(smoothness_p95_abs_first_diff),
+        "smoothness_max_abs_second_diff": float(smoothness_max_abs_second_diff),
     }
 
 
@@ -163,10 +176,14 @@ def _compare(baseline: Dict[str, Any], current: Dict[str, Any]) -> Tuple[bool, D
     peak_band = baseline.get("peak_nm_per_kg_band")
     p95_band = baseline.get("p95_nm_per_kg_band")
     smooth_max = float(baseline.get("smoothness_max_abs_first_diff_max", 0.0))
+    baseline_smooth_p95_d1 = float(baseline.get("smoothness_p95_abs_first_diff", 0.0))
+    baseline_smooth_max_d2 = float(baseline.get("smoothness_max_abs_second_diff", 0.0))
 
     peak = float(current.get("peak_nm_per_kg", 0.0))
     p95 = float(current.get("p95_nm_per_kg", 0.0))
     smooth = float(current.get("smoothness_max_abs_first_diff", 0.0))
+    smooth_p95_d1 = float(current.get("smoothness_p95_abs_first_diff", 0.0))
+    smooth_max_d2 = float(current.get("smoothness_max_abs_second_diff", 0.0))
 
     if not (isinstance(peak_band, list) and len(peak_band) == 2):
         ok = False
@@ -190,7 +207,10 @@ def _compare(baseline: Dict[str, Any], current: Dict[str, Any]) -> Tuple[bool, D
 
     smooth_ok = (smooth <= smooth_max) and np.isfinite(smooth)
 
-    if not peak_ok or not p95_ok or not smooth_ok:
+    smooth_p95_ok = (smooth_p95_d1 <= baseline_smooth_p95_d1 * 1.10) and np.isfinite(smooth_p95_d1)
+    smooth_d2_ok = (smooth_max_d2 <= baseline_smooth_max_d2 * 1.15) and np.isfinite(smooth_max_d2)
+
+    if not peak_ok or not p95_ok or not smooth_ok or not smooth_p95_ok or not smooth_d2_ok:
         ok = False
 
     report = {
@@ -200,6 +220,12 @@ def _compare(baseline: Dict[str, Any], current: Dict[str, Any]) -> Tuple[bool, D
         "p95_band": [p95_lo, p95_hi],
         "smoothness_max_abs_first_diff": smooth,
         "smoothness_max_abs_first_diff_max": smooth_max,
+        "smoothness_p95_abs_first_diff": smooth_p95_d1,
+        "smoothness_p95_abs_first_diff_baseline": baseline_smooth_p95_d1,
+        "smoothness_p95_abs_first_diff_max": float(baseline_smooth_p95_d1 * 1.10),
+        "smoothness_max_abs_second_diff": smooth_max_d2,
+        "smoothness_max_abs_second_diff_baseline": baseline_smooth_max_d2,
+        "smoothness_max_abs_second_diff_max": float(baseline_smooth_max_d2 * 1.15),
     }
 
     return ok, report
@@ -224,6 +250,8 @@ def main() -> int:
         peak = float(current["peak_nm_per_kg"])
         p95 = float(current["p95_nm_per_kg"])
         smooth = float(current["smoothness_max_abs_first_diff"])
+        smooth_p95_d1 = float(current["smoothness_p95_abs_first_diff"])
+        smooth_max_d2 = float(current["smoothness_max_abs_second_diff"])
 
         peak_lo, peak_hi = _make_band(peak, frac=0.20, abs_pad=1e-6)
         p95_lo, p95_hi = _make_band(p95, frac=0.20, abs_pad=1e-6)
@@ -237,6 +265,8 @@ def main() -> int:
             "peak_nm_per_kg_band": [peak_lo, peak_hi],
             "p95_nm_per_kg_band": [p95_lo, p95_hi],
             "smoothness_max_abs_first_diff_max": float(smooth_max),
+            "smoothness_p95_abs_first_diff": float(smooth_p95_d1),
+            "smoothness_max_abs_second_diff": float(smooth_max_d2),
         }
 
         baseline_path.parent.mkdir(parents=True, exist_ok=True)
@@ -252,7 +282,14 @@ def main() -> int:
 
     out_dir = Path(args.out_dir)
     baseline = _load_json(baseline_path)
-    current = _compute_current_from_out_dir(out_dir)
+
+    try:
+        current = _compute_current_from_out_dir(out_dir)
+    except Exception as e:
+        print(f"FAIL knee_analytics_walk_contract: invalid output in out_dir={out_dir}")
+        print(f"ERROR={type(e).__name__}: {e}")
+        print(f"REGEN_BASELINE_CMD={REGEN_BASELINE_CMD}")
+        return EXIT_INVALID_OUTPUT
 
     ok, report = _compare(baseline, current)
 
@@ -263,14 +300,15 @@ def main() -> int:
         f"curve_len={int(current.get('curve_len', -1))} "
         f"peak_nm_per_kg={float(report['peak_nm_per_kg']):.6g} "
         f"p95_nm_per_kg={float(report['p95_nm_per_kg']):.6g} "
-        f"smoothness_max_abs_first_diff={float(report['smoothness_max_abs_first_diff']):.6g}"
+        f"smoothness_max_abs_first_diff={float(report['smoothness_max_abs_first_diff']):.6g} "
+        f"smoothness_p95_abs_first_diff={float(report['smoothness_p95_abs_first_diff']):.6g} "
+        f"smoothness_max_abs_second_diff={float(report['smoothness_max_abs_second_diff']):.6g}"
     )
 
     if not ok:
         print("FAIL knee_analytics_walk_contract")
         print(json.dumps(report, indent=2, sort_keys=True))
-        if args.print_regen_cmd:
-            print(f"REGEN_BASELINE_CMD={REGEN_BASELINE_CMD}")
+        print(f"REGEN_BASELINE_CMD={REGEN_BASELINE_CMD}")
         return EXIT_CONTRACT_MISMATCH
 
     print("PASS knee_analytics_walk_contract")
