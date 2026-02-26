@@ -241,7 +241,7 @@ def _stance_window_from_fz(
 
         if int(end_idx - start_idx + 1) == int(x.size):
             method = "fallback_peak_centered_window_due_to_full_contact_mask"
-            max_stance_duration_s = 1.2
+            max_stance_duration_s = 0.08
             cap_len = int(round(float(max_stance_duration_s) * float(hz)))
             cap_len = max(3, min(int(x.size), int(cap_len)))
             peak_idx0 = int(np.argmax(fz_sm))
@@ -400,7 +400,76 @@ def main() -> int:
         stride_len_m=float(args.lever_arm_m),
     )
 
-    curve = np.asarray(analytics["moment_nm_per_kg"], dtype=np.float32).reshape(-1)
+    from src.adapters.imu_to_grf_input import build_grf_input_from_imu_csv
+    from src.vnext.data.imu_schema import get_feature_columns
+
+    X = build_grf_input_from_imu_csv(
+        fixture_path,
+        window_len=256,
+        num_windows=64,
+        stride=1,
+    )
+    if X.shape != (64, 256, 12):
+        raise ValueError(f"unexpected GRF input tensor shape {X.shape}")
+
+    feature_cols = list(get_feature_columns())
+    idx = {n: i for i, n in enumerate(feature_cols)}
+
+    def _col(name: str) -> np.ndarray:
+        if name not in idx:
+            raise KeyError(f"missing required channel {name}")
+        return np.asarray(X[0, :, idx[name]], dtype=np.float32)
+
+    g_thigh = np.sqrt(
+        _col("gxx_thigh").astype(np.float64) ** 2
+        + _col("gxy_thigh").astype(np.float64) ** 2
+        + _col("gxz_thigh").astype(np.float64) ** 2
+    ).astype(np.float32, copy=False)
+    g_shank = np.sqrt(
+        _col("gxx_shank").astype(np.float64) ** 2
+        + _col("gxy_shank").astype(np.float64) ** 2
+        + _col("gxz_shank").astype(np.float64) ** 2
+    ).astype(np.float32, copy=False)
+
+    rel_g = np.abs(g_shank.astype(np.float64) - g_thigh.astype(np.float64)).astype(
+        np.float32, copy=False
+    )
+
+    window = int(analytics.get("smooth_window_samples"))
+    window = max(1, window)
+    if window == 1:
+        rel_g_sm = rel_g
+    else:
+        pad_l = window // 2
+        pad_r = int(window - 1 - pad_l)
+        xp = np.pad(rel_g.astype(np.float64), (pad_l, pad_r), mode="edge")
+        kernel = np.ones(int(window), dtype=np.float64) / float(window)
+        rel_g_sm = np.convolve(xp, kernel, mode="valid").astype(np.float32, copy=False)
+
+    rel_g_norm = np.clip(rel_g_sm.astype(np.float64) / 2.5, 0.0, 1.0).astype(
+        np.float32, copy=False
+    )
+
+    lever_arm_base_m = float(args.lever_arm_m)
+    lever_arm_gain_m = 0.02
+    lever_arm_dyn_m = (
+        lever_arm_base_m + float(lever_arm_gain_m) * rel_g_norm.astype(np.float64)
+    ).astype(np.float32, copy=False)
+
+    moment_nm_per_kg_raw = (
+        (fz_first.astype(np.float64) * lever_arm_dyn_m.astype(np.float64)) / float(args.mass_kg)
+    ).astype(np.float32, copy=False)
+
+    if window == 1:
+        curve = moment_nm_per_kg_raw
+    else:
+        pad_l = window // 2
+        pad_r = int(window - 1 - pad_l)
+        xp = np.pad(moment_nm_per_kg_raw.astype(np.float64), (pad_l, pad_r), mode="edge")
+        kernel = np.ones(int(window), dtype=np.float64) / float(window)
+        curve = np.convolve(xp, kernel, mode="valid").astype(np.float32, copy=False)
+
+    curve = np.asarray(curve, dtype=np.float32).reshape(-1)
     stats = summarize_curve(curve)
     peak = float(stats["max"])
     p95 = float(stats["p95"])
@@ -425,6 +494,21 @@ def main() -> int:
 
     seg_curve = curve[int(stance_start_idx) : int(stance_end_idx) + 1].astype(np.float64, copy=False)
     smoothness_region_samples = int(seg_curve.size)
+
+    fz_seg = fz_first_n_per_kg[int(stance_start_idx) : int(stance_end_idx) + 1].astype(
+        np.float64, copy=False
+    )
+    if fz_seg.size:
+        fz_range_n_per_kg = float(np.percentile(fz_seg, 95.0) - np.percentile(fz_seg, 5.0))
+    else:
+        fz_range_n_per_kg = 0.0
+
+    if seg_curve.size:
+        moment_range_nm_per_kg = float(
+            np.percentile(seg_curve, 95.0) - np.percentile(seg_curve, 5.0)
+        )
+    else:
+        moment_range_nm_per_kg = 0.0
 
     if seg_curve.size >= 2:
         d1 = np.diff(seg_curve)
@@ -472,6 +556,30 @@ def main() -> int:
     else:
         sanity.append({"kind": "peak_moment_nm_per_kg", "status": "ok", "band": list(moment_band)})
 
+    fz_range_band = (0.5, 20.0)
+    if fz_range_n_per_kg < float(fz_range_band[0]):
+        msg = (
+            "WARN sanity: fz_range_n_per_kg too small (flatline guardrail) "
+            f"min_expected={float(fz_range_band[0])} got {fz_range_n_per_kg:.6g}"
+        )
+        print(msg)
+        sanity.append({"kind": "fz_range_n_per_kg", "status": "warn", "message": msg, "band": list(fz_range_band)})
+    else:
+        sanity.append({"kind": "fz_range_n_per_kg", "status": "ok", "band": list(fz_range_band)})
+
+    moment_range_band = (0.01, 2.0)
+    if moment_range_nm_per_kg < float(moment_range_band[0]):
+        msg = (
+            "WARN sanity: moment_range_nm_per_kg too small (flatline guardrail) "
+            f"min_expected={float(moment_range_band[0])} got {moment_range_nm_per_kg:.6g}"
+        )
+        print(msg)
+        sanity.append(
+            {"kind": "moment_range_nm_per_kg", "status": "warn", "message": msg, "band": list(moment_range_band)}
+        )
+    else:
+        sanity.append({"kind": "moment_range_nm_per_kg", "status": "ok", "band": list(moment_range_band)})
+
     knee_metrics = {
         "schema_version": str(analytics["schema_version"]),
         "fixture": str(fixture_rel),
@@ -483,12 +591,17 @@ def main() -> int:
             "smoothness_p95_abs_first_diff": "Nm/kg per sample",
             "smoothness_max_abs_second_diff": "Nm/kg per sample^2",
             "smoothness_p95_abs_second_diff": "Nm/kg per sample^2",
+            "fz_range_n_per_kg": "N/kg",
+            "moment_range_nm_per_kg": "Nm/kg",
         },
         "inputs": {
             "mass_kg": float(args.mass_kg),
             "sample_hz": float(sample_hz),
             "dt_s": float(1.0 / float(sample_hz)),
             "lever_arm_m": float(args.lever_arm_m),
+            "lever_arm_model": "dynamic_rel_gyro_v1",
+            "lever_arm_base_m": float(lever_arm_base_m),
+            "lever_arm_gain_m": float(lever_arm_gain_m),
             "window_len": 256,
             "num_windows": 64,
             "stride": 1,
@@ -514,6 +627,8 @@ def main() -> int:
         "smoothness_p95_abs_first_diff": float(smoothness_p95_abs_first_diff),
         "smoothness_max_abs_second_diff": float(smoothness_max_abs_second_diff),
         "smoothness_p95_abs_second_diff": float(smoothness_p95_abs_second_diff),
+        "fz_range_n_per_kg": float(fz_range_n_per_kg),
+        "moment_range_nm_per_kg": float(moment_range_nm_per_kg),
         "peak_fz_n_per_kg": float(peak_fz_n_per_kg),
         "sanity_checks": sanity,
     }

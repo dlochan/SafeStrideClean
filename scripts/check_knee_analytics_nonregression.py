@@ -110,6 +110,9 @@ def _compute_current_from_out_dir(out_dir: Path) -> Dict[str, Any]:
         "fixture",
         "inputs",
         "inputs.smoothness_region",
+        "inputs.lever_arm_model",
+        "inputs.lever_arm_base_m",
+        "inputs.lever_arm_gain_m",
         "curve_len",
         "curve_stats",
         "peak_nm_per_kg",
@@ -120,6 +123,8 @@ def _compute_current_from_out_dir(out_dir: Path) -> Dict[str, Any]:
         "smoothness_max_abs_second_diff",
         "smoothness_p95_abs_second_diff",
         "smoothness_region_samples",
+        "fz_range_n_per_kg",
+        "moment_range_nm_per_kg",
     ]
 
     for k in required_keys:
@@ -138,9 +143,16 @@ def _compute_current_from_out_dir(out_dir: Path) -> Dict[str, Any]:
     if str(smoothness_region) != "stance":
         raise ValueError("inputs.smoothness_region must be 'stance'")
 
+    lever_arm_model = ((metrics.get("inputs") or {}).get("lever_arm_model"))
+    if str(lever_arm_model) != "dynamic_rel_gyro_v1":
+        raise ValueError("inputs.lever_arm_model must be 'dynamic_rel_gyro_v1'")
+
     finite_fraction = float(metrics.get("finite_fraction", 0.0))
     if finite_fraction != 1.0:
         raise ValueError("finite_fraction must be 1.0")
+
+    fz_range_n_per_kg = float(metrics.get("fz_range_n_per_kg", 0.0))
+    moment_range_nm_per_kg = float(metrics.get("moment_range_nm_per_kg", 0.0))
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -154,6 +166,8 @@ def _compute_current_from_out_dir(out_dir: Path) -> Dict[str, Any]:
         "smoothness_max_abs_second_diff": float(smoothness_max_abs_second_diff),
         "smoothness_p95_abs_second_diff": float(smoothness_p95_abs_second_diff),
         "smoothness_region_samples": int(smoothness_region_samples),
+        "fz_range_n_per_kg": float(fz_range_n_per_kg),
+        "moment_range_nm_per_kg": float(moment_range_nm_per_kg),
     }
 
 
@@ -217,6 +231,8 @@ def _compare(baseline: Dict[str, Any], current: Dict[str, Any]) -> Tuple[bool, D
     smooth_max_d2 = float(current.get("smoothness_max_abs_second_diff", 0.0))
     smooth_p95_d2 = float(current.get("smoothness_p95_abs_second_diff", 0.0))
     smoothness_region_samples = int(current.get("smoothness_region_samples", -1))
+    fz_range_n_per_kg = float(current.get("fz_range_n_per_kg", 0.0))
+    moment_range_nm_per_kg = float(current.get("moment_range_nm_per_kg", 0.0))
 
     if not (isinstance(peak_band, list) and len(peak_band) == 2):
         ok = False
@@ -248,6 +264,11 @@ def _compare(baseline: Dict[str, Any], current: Dict[str, Any]) -> Tuple[bool, D
     smooth_d2_ok = (smooth_max_d2 <= smooth_max_d2_max) and np.isfinite(smooth_max_d2)
     smooth_p95_d2_ok = (smooth_p95_d2 <= smooth_p95_d2_max) and np.isfinite(smooth_p95_d2)
 
+    fz_range_floor = 0.5
+    moment_range_floor = 0.01
+    fz_range_ok = (fz_range_n_per_kg >= float(fz_range_floor)) and np.isfinite(fz_range_n_per_kg)
+    moment_range_ok = (moment_range_nm_per_kg >= float(moment_range_floor)) and np.isfinite(moment_range_nm_per_kg)
+
     if (
         not peak_ok
         or not p95_ok
@@ -256,6 +277,8 @@ def _compare(baseline: Dict[str, Any], current: Dict[str, Any]) -> Tuple[bool, D
         or not smooth_d2_ok
         or not smooth_p95_d2_ok
         or smoothness_region_samples <= 0
+        or not fz_range_ok
+        or not moment_range_ok
     ):
         ok = False
 
@@ -276,6 +299,10 @@ def _compare(baseline: Dict[str, Any], current: Dict[str, Any]) -> Tuple[bool, D
         "smoothness_p95_abs_second_diff_baseline": baseline_smooth_p95_d2,
         "smoothness_p95_abs_second_diff_max": float(smooth_p95_d2_max),
         "smoothness_region_samples": int(smoothness_region_samples),
+        "fz_range_n_per_kg": float(fz_range_n_per_kg),
+        "fz_range_floor": float(fz_range_floor),
+        "moment_range_nm_per_kg": float(moment_range_nm_per_kg),
+        "moment_range_floor": float(moment_range_floor),
     }
 
     return ok, report
@@ -303,6 +330,8 @@ def main() -> int:
         smooth_p95_d1 = float(current["smoothness_p95_abs_first_diff"])
         smooth_max_d2 = float(current["smoothness_max_abs_second_diff"])
         smooth_p95_d2 = float(current["smoothness_p95_abs_second_diff"])
+        fz_range_n_per_kg = float(current["fz_range_n_per_kg"])
+        moment_range_nm_per_kg = float(current["moment_range_nm_per_kg"])
 
         peak_lo, peak_hi = _make_band(peak, frac=0.20, abs_pad=1e-6)
         p95_lo, p95_hi = _make_band(p95, frac=0.20, abs_pad=1e-6)
@@ -319,6 +348,8 @@ def main() -> int:
             "smoothness_p95_abs_first_diff": float(smooth_p95_d1),
             "smoothness_max_abs_second_diff": float(smooth_max_d2),
             "smoothness_p95_abs_second_diff": float(smooth_p95_d2),
+            "fz_range_n_per_kg": float(fz_range_n_per_kg),
+            "moment_range_nm_per_kg": float(moment_range_nm_per_kg),
         }
 
         baseline_path.parent.mkdir(parents=True, exist_ok=True)
@@ -356,7 +387,9 @@ def main() -> int:
         f"smoothness_p95_abs_first_diff={float(report['smoothness_p95_abs_first_diff']):.6g} "
         f"smoothness_max_abs_second_diff={float(report['smoothness_max_abs_second_diff']):.6g} "
         f"smoothness_p95_abs_second_diff={float(report['smoothness_p95_abs_second_diff']):.6g} "
-        f"smoothness_region_samples={int(report['smoothness_region_samples'])}"
+        f"smoothness_region_samples={int(report['smoothness_region_samples'])} "
+        f"fz_range_n_per_kg={float(report['fz_range_n_per_kg']):.6g} "
+        f"moment_range_nm_per_kg={float(report['moment_range_nm_per_kg']):.6g}"
     )
 
     if not ok:
@@ -365,7 +398,9 @@ def main() -> int:
             "KNEE_ANALYTICS_CONTRACT limits: "
             f"smooth_p95_d1<={float(report['smoothness_p95_abs_first_diff_max']):.6g} "
             f"smooth_max_d2<={float(report['smoothness_max_abs_second_diff_max']):.6g} "
-            f"smooth_p95_d2<={float(report['smoothness_p95_abs_second_diff_max']):.6g}"
+            f"smooth_p95_d2<={float(report['smoothness_p95_abs_second_diff_max']):.6g} "
+            f"fz_range>={float(report['fz_range_floor']):.6g} "
+            f"moment_range>={float(report['moment_range_floor']):.6g}"
         )
         print(json.dumps(report, indent=2, sort_keys=True))
         print(f"REGEN_BASELINE_CMD={REGEN_BASELINE_CMD}")
